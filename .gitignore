@@ -1,0 +1,9 @@
+linux_386/
+linux_amd64/
+_obj/
+bin/
+*.6
+*.8
+*.orig
+*.e64
+*~
