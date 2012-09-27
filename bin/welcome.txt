@@ -1,0 +1,6 @@
+!!Ephenation
+!Press ESC for help menu.
+!
+!This message will be shown when a player logs in.
+!Using exclamation marks makes it go into a pop-up dialog.
+
