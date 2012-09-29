@@ -879,9 +879,8 @@ func (up *user) Heal(heal, manaCost float32) (ret bool) {
 	return
 }
 
-// Inititate attack on a monster
-func CmdPlayerAction_WLuBl(index int, userAction byte) {
-	up := allPlayers[index]
+// Manage player spells
+func (up *user) CmdPlayerAction_WLuBl(userAction byte) {
 	if up.pl.dead {
 		up.Printf_Bl("Unable now\n")
 		return
@@ -904,7 +903,7 @@ func CmdPlayerAction_WLuBl(index int, userAction byte) {
 			up.Printf_Bl("Start attack first")
 		} else if up.pl.mana < CnfgManaForCombAttack {
 			up.Printf_Bl("Not enough mana")
-		} else {
+		} else if !mp.dead {
 			up.Lock()
 			up.pl.mana -= CnfgManaForCombAttack
 			up.updatedStats = true
@@ -915,7 +914,7 @@ func CmdPlayerAction_WLuBl(index int, userAction byte) {
 }
 
 // Inititate attack on a monster
-func CmdAttackMonster_WLuRLm(index int, b []byte) {
+func (up *user) CmdAttackMonster_WLuRLm(b []byte) {
 	monsterId, b, ok := ParseUint32(b)
 	if !ok {
 		log.Printf("Failed to parse monster level %v\n", b)
@@ -925,10 +924,9 @@ func CmdAttackMonster_WLuRLm(index int, b []byte) {
 	mp := monsterData.m[monsterId]
 	monsterData.RUnlock()
 	if mp == nil {
-		// Monster didn't exist any longer
+		// Monster doesn't exist any longer
 		return
 	}
-	up := allPlayers[index]
 	if up.pl.dead {
 		up.Printf_Bl("Can't attack when dead\n")
 		return

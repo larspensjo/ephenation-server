@@ -288,13 +288,13 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				log.Printf("CMD_ATTACK_MONSTER illegal length: %v\n", buff[0:length])
 				return
 			}
-			CmdAttackMonster_WLuRLm(i, buff[3:7])
+			up.CmdAttackMonster_WLuRLm(buff[3:7])
 		case CMD_PLAYER_ACTION:
 			if length != 4 {
 				log.Printf("CMD_PLAYER_ACTION illegal length: %v\n", buff[0:length])
 				return
 			}
-			CmdPlayerAction_WLuBl(i, buff[3])
+			up.CmdPlayerAction_WLuBl(buff[3])
 		case CMD_READ_CHUNK:
 			if length != 15 {
 				log.Printf("CommandReadChunk illegal length: %v\n", buff[0:length])
