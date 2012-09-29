@@ -9,3 +9,5 @@ The server is designed to run on a Linux platform, and the client is design to r
 (based on OpenGL 3.3).
 
 See [Ephenation wiki](https://github.com/larspensjo/ephenation-server/wiki) for more documentation.
+
+![View](https://lh3.googleusercontent.com/-dGiXwRVTXgA/UGcwRDzfIrI/AAAAAAAAAUs/EHObZSWYJp4/w732-h296-n-k/View_2012-09-30.jpeg)
