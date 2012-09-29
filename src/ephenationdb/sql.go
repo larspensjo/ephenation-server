@@ -31,16 +31,18 @@ import (
 )
 
 var (
-	cachedb  *mysql.Client
-	mutex    sync.RWMutex // This lock shall be active when the local cache is accessed
-	released time.Time    // When the current db, if any, was released
-)
-
-var (
+	cachedb            *mysql.Client
+	mutex              sync.RWMutex // This lock shall be active when the local cache is accessed
+	released           time.Time    // When the current db, if any, was released
+	countFailure       int
 	dbLicenseDatabase  string
 	dbDatabaseName     string
 	dbDatabaseLogin    string
 	dbDatabasePassword string
+)
+
+const (
+	maxRetries = 5 // Number of times a failure with report an error. Go silent after that.
 )
 
 // Initialize with connection data
@@ -72,11 +74,15 @@ func New() *mysql.Client {
 		var err error
 		db, err = mysql.DialTCP(dbLicenseDatabase, dbDatabaseLogin, dbDatabasePassword, dbDatabaseName)
 		if err != nil {
-			log.Println(err)
-			// os.Exit(1)
-			return nil
+			countFailure++
+			if countFailure == maxRetries {
+				log.Println(err, "(last warning)")
+			} else if countFailure < maxRetries {
+				log.Println(err)
+			}
+		} else {
+			countFailure = 0
 		}
-		db.Reconnect = true // If connection is lost, it will be reconnected automatically.
 	}
 	return db
 }
