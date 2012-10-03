@@ -53,8 +53,6 @@ const (
 	CMD_REQ_PASSWORD               = 24 // Request the password from the client, encrypt it with RC4 using argument.
 	CMD_RESP_PASSWORD              = 25 // An encrypted password from the client to the server
 	CMD_PROT_VERSION               = 26 // The version of the communication protocol
-	CMD_REQ_CHUNK_CS               = 27 // Request the checksum for a chunk
-	CMD_RESP_CHUNK_CS              = 28 // Checksum information about a chunk
 	CMD_VRFY_SUPERCHUNCK_CS        = 29 // Request server to verify one or more super chunk checksums. If wrong, an update will be sent.
 	CMD_SUPERCHUNK_ANSWER          = 29 // (Same number) The full requested super chunk sent back to the client
 	CMD_PLAYER_STATS               = 30 // Information about the player that doesn't change very often.
