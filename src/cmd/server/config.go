@@ -20,6 +20,7 @@ package main
 //
 // This is a general configuration file for the game engine
 // Times are defined in nonoseconds. That means 1e8=0.1s, 1e9=1s, 1e10=10s, 1e11=100s, etc.
+// TODO: All parameters here should have precix Cnfg.
 //
 const (
 	// How many nanoseconds between update of player and monster positions
@@ -34,7 +35,7 @@ const (
 	CnfgHealingPeriod           = 1.2e11    // Nanoseconds needed for healing 100%
 	MonsterMovingProb           = 0.6       // The probability that the monster is moving when no aggro
 	MAX_PLAYERS                 = 2000      // Maximum number of logged in players
-	RUNNING_SPEED               = 4.0       // blocks per second of a running player
+	RUNNING_SPEED               = 4.0       // blocks per second of a running player. TODO: Should be a bigger number?
 	GRAVITY                     = 5.0       // blocks per seconds squared
 	QuadtreeInitSize            = 64        // Measured in blocks.
 	DefaultMonsterSpawnDistance = 25        // Number of blocks away that random monsters will spawn
@@ -42,6 +43,7 @@ const (
 	CnfgMonsterAggroDistance    = 20        // How close you have to be to a monser to get aggro
 	CnfgMonsterFieldOfView      = 1.40      // The viewing angle for a monster, in radians
 	CnfgMeleeDistLimit          = 4         // Max block distance to be allowed to hit
+	CnfgMaxChunkReqDist         = 5         // Client can not request chunks further away than this. Max view distance is 160 blocks, which correspopnds to 5 chunks.
 	MaxMonsterSpawnHeightDiff   = 6         // The monster will not spawn outside of this diff to the player (in blocks)
 	MonsterLimitForRespawn      = 3         // If there is at least this many monsters near, no new will be spawned.
 	LoginChallengeLength        = 20        // The number of random bytes used in login, sent to the client.

@@ -19,7 +19,7 @@ package main
 
 //
 // Listen for incoming messages from a client, decode the protocol and call the appropriate
-// function, usually in manage_clients.go. All data going back to the klient also pass through
+// function, usually in manage_clients.go. All data going back to the client also pass through
 // here. There is one goroutine spawned for every client.
 //
 
@@ -37,6 +37,10 @@ var (
 	// Just for nice info, keep track of who was last logged in
 	lastUser     string
 	timeOfLogout time.Time
+)
+
+const (
+	dummyLoginName = "<login>"
 )
 
 // This is a function that only listens for new connections. The listening is done forever in a goroutine of its own,
@@ -86,7 +90,7 @@ func ManageOneClient_WLuBlWLqWLa(conn net.Conn, i int) {
 	// log.Print("RemoteAddr ", conn.RemoteAddr(), "\n")
 	SendProtocolVersion_Bl(conn)
 	ManageOneClient2_WLuWLqWLmBlWLcWLw(conn, i)
-	if !NameIsTestPlayer(allPlayers[i].pl.name) {
+	if !NameIsTestPlayer(allPlayers[i].pl.name) && allPlayers[i].pl.name != dummyLoginName {
 		lastUser = allPlayers[i].pl.name
 		timeOfLogout = time.Now()
 	}
@@ -99,8 +103,8 @@ func ManageOneClient_WLuBlWLqWLa(conn net.Conn, i int) {
 func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 	buff := make([]byte, 50) // Command buffer, also used for blocking messages.
 	up := allPlayers[i]
-	up.pl.name = "<login>" // To have something to print
-	up.lic = nil           // Just a safety precaution
+	up.pl.name = dummyLoginName // To have something to print
+	up.lic = nil                // Just a safety precaution
 	previous := time.Now()
 	longPrevious := previous
 	previousAttack := previous
@@ -302,21 +306,14 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			} else {
 				MakeCommandReadChunk_WLwWLcBl(i, buff[3:length])
 			}
-		case CMD_REQ_CHUNK_CS:
-			if length != 6 {
-				log.Printf("CMD_REQ_CHUNK_CS illegal length: %v\n", buff[0:length])
-				return
-			} else {
-				CommandReadChunkCS_WLwWLcBl(buff, i, buff[3:length]) // This function will overwrite 'buff' with new contents.
-			}
-		case CMD_VRFY_CHUCK_CS:
+		case CMD_VRFY_CHUNCK_CS:
 			if length < 10 || ((length-3)%7 != 0) {
 				// fmt.Printf("Verify Checksum length error!")
-				log.Printf("CMD_VRFY_CHUNK_CS illegal length: %v\n", buff[0:length])
+				log.Printf("CMD_VRFY_CHUNCK_CS illegal length: %v\n", buff[0:length])
 			} else {
 				// A list of chunk checksums can be recieved, these should be verified and if the
 				// checksum is not correct, the updated block should be sent
-				// fmt.Printf("CMD_VRFY_CHUNK_CS - %v %v %v %v\n", buff[6], buff[7], buff[8], buff[9] )
+				// fmt.Printf("CMD_VRFY_CHUNCK_CS - %v %v %v %v\n", buff[6], buff[7], buff[8], buff[9] )
 				CommandVerifyChunkCS_WLwWLcBl(i, buff[3:length])
 			}
 		case CMD_HIT_BLOCK:

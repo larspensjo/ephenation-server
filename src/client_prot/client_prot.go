@@ -63,7 +63,7 @@ const (
 	CMD_RESP_PLAYER_HIT_BY_MONSTER = 33 // The player was hit by one or more monsters
 	CMD_RESP_PLAYER_HIT_MONSTER    = 34 // The player hit one or more monsters
 	CMD_RESP_AGGRO_FROM_MONSTER    = 35 // The player got aggro from one or more monsters
-	CMD_VRFY_CHUCK_CS              = 36 // Request server to verify checksum for one or more chunks. If wrong, the updated chunk will be sent.
+	CMD_VRFY_CHUNCK_CS             = 36 // Request server to verify checksum for one or more chunks. If wrong, the updated chunk will be sent.
 	CMD_USE_ITEM                   = 37 // The player uses an item from the inventory.
 	CMD_UPD_INV                    = 38 // Server updates the client about the amount of items.
 	CMD_EQUIPMENT                  = 39 // Report equipment
