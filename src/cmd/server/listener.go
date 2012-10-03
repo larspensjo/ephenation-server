@@ -252,13 +252,13 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			if *verboseFlag > 2 {
 				log.Printf("Logincmd %v\n", buff[3:length])
 			}
-			CmdLogin_WLwWLuWLqBlWLc(string(buff[3:length]), i)
+			up.CmdLogin_WLwWLuWLqBlWLc(string(buff[3:length]))
 			if *verboseFlag > 1 {
 				defer log.Printf("Leaving player '%v'\n", up.pl.name)
 			}
 		case CMD_RESP_PASSWORD:
 			// log.Printf("Logincmd %v\n", buff[3 : length])
-			if !CmdPassword_WLwWLuWLqBlWLc(buff[3:length], i) {
+			if !up.CmdPassword_WLwWLuWLqBlWLc(buff[3:length]) {
 				buff[0] = 3
 				buff[1] = 0
 				buff[2] = CMD_LOGINFAILED

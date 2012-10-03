@@ -177,11 +177,11 @@ func DoTestMonsterSpawnAndPurge_WLuWLqBlWLwWLaWLmWLc() {
 	// Create a dummy user.
 	conn := MakeDummyConn()
 	_, index := NewClientConnection_WLa(conn)
+	up := allPlayers[index]
 	DoTestCheck("DoTestMonsterSpawnAndPurge: create one player", numPlayers == 1)
 	DoTestCheck("DoTestMonsterSpawnAndPurge: login nack", !conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
-	CmdLogin_WLwWLuWLqBlWLc("test0", index)                                                                          // login name is an email, but don't care for this test.
+	up.CmdLogin_WLwWLuWLqBlWLc("test0")                                                                              // login name is an email, but don't care for this test.
 	DoTestCheck("DoTestMonsterSpawnAndPurge: request password", !conn.TestCommandSeen(client_prot.CMD_REQ_PASSWORD)) // No password for test users
-	up := allPlayers[0]
 	DoTestCheck("DoTestMonsterSpawnAndPurge: login ack", conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
 	DoTestCheck("DoTestMonsterSpawnAndPurge: expect no license", up.lic == nil)
 	// fmt.Printf("%#v\n", up)
@@ -482,15 +482,15 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 	DoTestCheck("DoTestPlayerManagement initial uid assoc", ok == false)
 	conn := MakeDummyConn()
 	ok, index := NewClientConnection_WLa(conn)
+	up := allPlayers[index]
 	DoTestCheck("DoTestPlayerManagement: create one player", numPlayers == 1 && ok)
-	CmdLogin_WLwWLuWLqBlWLc(name, index) // login name is an email, but don't care for this test.
+	up.CmdLogin_WLwWLuWLqBlWLc(name) // login name is an email, but don't care for this test.
 
 	_, ok = allPlayerNameMap[name]
 	DoTestCheck("DoTestPlayerManagement name assoc", ok == true)
 	_, ok = allPlayerIdMap[OWNER_TEST]
 	DoTestCheck("DoTestPlayerManagement uid assoc", ok == true)
 
-	up := allPlayers[index]
 	pl := &up.pl
 	DoTestCheck("DoTestPlayerManagement test0 starting point x", pl.coord.X == 0)
 	DoTestCheck("DoTestPlayerManagement test0 starting point y", pl.coord.Y == 0)
@@ -522,7 +522,7 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 	for i := range indecies {
 		_, ind := NewClientConnection_WLa(conn)
 		indecies[i] = ind
-		CmdLogin_WLwWLuWLqBlWLc("test"+fmt.Sprint(ind), ind)
+		allPlayers[ind].CmdLogin_WLwWLuWLqBlWLc("test" + fmt.Sprint(ind))
 		playerQuadtree.Empty()
 	}
 	// fmt.Println(playerQuadtree.String())
@@ -544,7 +544,7 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 
 	// Now test that a disconnected player is updated correctly in the quadtree
 	ok, index = NewClientConnection_WLa(conn)
-	CmdLogin_WLwWLuWLqBlWLc(name, index) // login name is an email, but don't care for this test.
+	allPlayers[index].CmdLogin_WLwWLuWLqBlWLc(name) // login name is an email, but don't care for this test.
 	DoTestCheck("DoTestPlayerManagement quadtree player back again", ok && !playerQuadtree.Empty())
 	allPlayers[index].connState = PlayerConnStateDisc
 	CmdClose_BlWLqWLuWLa(index)
@@ -650,8 +650,8 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 	conn := MakeDummyConn()
 	_, index := NewClientConnection_WLa(conn)
 	DoTestCheck("DoTestFriends: create one player", numPlayers == 1 && index == 0)
-	CmdLogin_WLwWLuWLqBlWLc(name, index) // login name is an email, but don't care for this test.
 	up := allPlayers[index]
+	up.CmdLogin_WLwWLuWLqBlWLc(name) // login name is an email, but don't care for this test.
 	DoTestCheck("DoTestFriends: Empty listener list", len(up.pl.Listeners) == 0)
 	DoTestCheck("DoTestFriends: login ack", conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
 	const (

@@ -137,11 +137,10 @@ func NewClientConnection_WLa(conn net.Conn) (ok bool, index int) {
 
 // The 'name' argument is not the nick name shown, it is the login name used to
 // authenticate the player.
-func CmdLogin_WLwWLuWLqBlWLc(email string, index int) {
+func (up *user) CmdLogin_WLwWLuWLqBlWLc(email string) {
 	// fmt.Printf("CmdLogin: New player %v\n", email)
 	// It may be that there is no license for this player. But we can only give one type of error
 	// message, which means wrong email or password.
-	up := allPlayers[index]
 	validTestUser := false
 	remote := up.conn.RemoteAddr().String()
 	addr := strings.Split(remote, ":") // The format is expected to be NNN.NNN.NNN.NNN:NNNN.
@@ -168,7 +167,7 @@ func CmdLogin_WLwWLuWLqBlWLc(email string, index int) {
 		// This test player is allowed login without password, but it is never saved
 		uid := up.pl.New_WLwWLc(email)
 		up.uid = uid
-		up.loginAck_WLuWLqBlWLa(index)
+		up.loginAck_WLuWLqBlWLa()
 		up.pl.adminLevel = 9
 	} else {
 		lic := license.Load_Bl(email)
@@ -223,10 +222,9 @@ func xorVector(v1, v2 []byte) (ret []byte) {
 
 // Check the password of the player.
 // Return false if connection shall be disonnected
-func CmdPassword_WLwWLuWLqBlWLc(encrPass []byte, index int) bool {
+func (up *user) CmdPassword_WLwWLuWLqBlWLc(encrPass []byte) bool {
 	// The password is given by the client as an encrypted byte vector.
 	// fmt.Printf("CmdPassword: New player encr passwd%v\n", encrPass)
-	up := allPlayers[index]
 	if up.lic == nil {
 		// CmdLogin_WLwWLuWLqBlWLc(up.pl.name, index)
 		if *verboseFlag > 0 {
@@ -253,12 +251,12 @@ func CmdPassword_WLwWLuWLqBlWLc(encrPass []byte, index int) bool {
 	}
 	// Save player logon time
 	up.lic.SaveLogonTime_Bl()
-	up.loginAck_WLuWLqBlWLa(index)
+	up.loginAck_WLuWLqBlWLa()
 	return true
 }
 
 // A user has been accepted as a player. Send ack and inform near objects
-func (up *user) loginAck_WLuWLqBlWLa(index int) {
+func (up *user) loginAck_WLuWLqBlWLa() {
 	up.ReportAllInventory_WluBl()
 	// Don't need lock yet, as the used data until now is constant.
 	const msgLen = 12
