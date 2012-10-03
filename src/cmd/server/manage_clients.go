@@ -539,8 +539,9 @@ func (up *user) CmdReadChunk_WLwWLcBl(cc chunkdb.CC) {
 	dy := userCC.Y - cc.Y
 	dz := userCC.Z - cc.Z
 	dist := dx*dx + dy*dy + dz*dz
-	if dist > CnfgMaxChunkReqDist*CnfgMaxChunkReqDist {
-		log.Println("User", up.pl.name, "requested chunk too far away", userCC, cc)
+	if dist > 3*CnfgMaxChunkReqDist*CnfgMaxChunkReqDist {
+		// Factor 3 is need for worst case with maximum distance in all three dimensions.
+		log.Println("User", up.pl.name, "requested chunk too far away", userCC, cc, "distance", dist)
 		up.Printf("!Bad chunk request")
 		return
 	}

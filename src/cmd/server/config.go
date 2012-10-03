@@ -43,7 +43,7 @@ const (
 	CnfgMonsterAggroDistance    = 20        // How close you have to be to a monser to get aggro
 	CnfgMonsterFieldOfView      = 1.40      // The viewing angle for a monster, in radians
 	CnfgMeleeDistLimit          = 4         // Max block distance to be allowed to hit
-	CnfgMaxChunkReqDist         = 5         // Client can not request chunks further away than this. Max view distance is 160 blocks, which correspopnds to 5 chunks.
+	CnfgMaxChunkReqDist         = 6         // Client can not request chunks further away than this (in one dimension). Max view distance is 160 blocks, which correspopnds to 5 chunks.
 	MaxMonsterSpawnHeightDiff   = 6         // The monster will not spawn outside of this diff to the player (in blocks)
 	MonsterLimitForRespawn      = 3         // If there is at least this many monsters near, no new will be spawned.
 	LoginChallengeLength        = 20        // The number of random bytes used in login, sent to the client.
