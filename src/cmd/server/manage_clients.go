@@ -531,43 +531,25 @@ func (up *user) CommandVerifySuperchunkCS_Bl(b []byte) {
 	}
 }
 
-// The client asked for the checksum for a chunk. The 'ans' is provided by the caller to save need for new allocations.
-// A little ugly, but the buffer is the same as the 'b' argument, so it must not be overwritten until 'b' has been used.
-func CommandReadChunkCS_WLwWLcBl(ans []byte, i int, b []byte) {
-	xLSB := b[0]
-	yLSB := b[1]
-	zLSB := b[2]
-	up := allPlayers[i]
-	coord := up.pl.coord.GetChunkCoord().UpdateLSB(xLSB, yLSB, zLSB)
-	// fmt.Printf("CommandReadChunkCS index %v player coord %v, LSB (%d,%d,%d), new %v\n", i, up.pl.coord, xLSB, yLSB, zLSB, coord)
-	ch := ChunkFind_WLwWLc(coord)
-	// There is no lock used on the chunk. There are three scenarious that can happen with the checksum:
-	// 1. No change, which is no problem.
-	// 2. The checksum does not match the actual chunk data, which is being updated concurrently (very unlikely).
-	// 3. The checksum (4 bytes) is partly updated (extremly unlikely)
-	// In case of a wrong checksum (#2 and #3), the client will request the updated block as the checksum will not match
-	// the current client chunk. This is just what we want anyway.
-	// fmt.Printf("CommandReadChunkCS coord %v checksum %v\n", coord, ch.checkSum)
-	const length = 10
-	ans[0] = byte(length & 0xFF)
-	ans[1] = byte(length >> 8)
-	ans[2] = client_prot.CMD_RESP_CHUNK_CS
-	ans[3] = xLSB
-	ans[4] = yLSB
-	ans[5] = zLSB
-	EncodeUint32(ch.checkSum, ans[6:10])
-	up.writeBlocking_Bl(ans[:length]) // A blocking call must be used as we are called directly from the user goroutine.
-}
-
 func (up *user) CmdReadChunk_WLwWLcBl(cc chunkdb.CC) {
-	var ch []byte
+	// Check that it is a valid request, inside a limited range. We don't want clients to
+	// spam the server with requests, and we don't want them to download the complete world.
+	userCC := up.prevCoord.GetChunkCoord()
+	dx := userCC.X - cc.X
+	dy := userCC.Y - cc.Y
+	dz := userCC.Z - cc.Z
+	dist := dx*dx + dy*dy + dz*dz
+	if dist > CnfgMaxChunkReqDist*CnfgMaxChunkReqDist {
+		log.Println("User", up.pl.name, "requested chunk too far away", userCC, cc)
+		up.Printf("!Bad chunk request")
+		return
+	}
 
-	// TODO: Only allow reading chunks near the player
+	var ch []byte
 	var ans [15 + 3*4]byte
 	{
-		// In a local block to make sure 'b' isn't accessed outside of read lock.
+		// 'b' is in a local block to make sure 'b' isn't accessed outside of read lock.
 		b := ChunkFind_WLwWLc(cc)
-		// Need to set a read lock to make sure nothing internally changes
 		b.RLock()
 		// The compressed data is ok to save for access outside of lock, as it will not be updated by anyone else.
 		// It may be that a new compressed block is allocated, in which case the old one will be saved here.
@@ -584,8 +566,9 @@ func (up *user) CmdReadChunk_WLwWLcBl(cc chunkdb.CC) {
 	EncodeUint32(uint32(cc.X), ans[15:19])
 	EncodeUint32(uint32(cc.Y), ans[19:23])
 	EncodeUint32(uint32(cc.Z), ans[23:27])
+	// Send the header of the message
 	up.writeBlocking_Bl(ans[:])
-	// log.Printf("CmdReadChunk: got chunk len %d, %v\n", len(ch), ch)
+	// Send the payload of the message
 	up.writeBlocking_Bl(ch)
 }
 
