@@ -28,11 +28,11 @@ import (
 	"crypto/rc4"
 	"ephenationdb"
 	"fmt"
+	"github.com/larspensjo/Go-simplex-noise/simplexnoise"
 	"keys"
 	"license"
 	"math"
 	"quadtree"
-	"simplexnoise"
 	"time"
 	"twof"
 )
@@ -59,7 +59,7 @@ func DoTest() {
 	if dbok {
 		DoTestLicense_Bl()
 	}
-	// DoTestSimplexNoise()
+	DoTestSimplexNoise()
 	DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc()
 	DoTestCoordinates()
 	if dbok {

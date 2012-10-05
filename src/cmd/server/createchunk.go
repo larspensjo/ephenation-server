@@ -20,8 +20,8 @@ package main
 import (
 	// "fmt"
 	"chunkdb"
+	"github.com/larspensjo/Go-simplex-noise/simplexnoise"
 	"math"
-	"simplexnoise"
 	"time"
 )
 
