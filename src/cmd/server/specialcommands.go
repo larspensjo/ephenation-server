@@ -24,7 +24,7 @@ import (
 	"chunkdb"
 	"client_prot"
 	"fmt"
-	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
+	"github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"license"
 	"log"
 	"os"
