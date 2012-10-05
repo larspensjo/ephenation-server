@@ -24,8 +24,8 @@ package superchunk
 
 import (
 	. "chunkdb"
-	sync "evalsync"
 	"fmt"
+	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"io"
 	"io/ioutil"
 	"log"

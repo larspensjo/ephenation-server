@@ -23,8 +23,8 @@ package main
 import (
 	"chunkdb"
 	"client_prot"
-	"evalsync"
 	"fmt"
+	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"license"
 	"log"
 	"os"

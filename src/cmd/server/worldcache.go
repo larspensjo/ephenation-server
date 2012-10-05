@@ -26,7 +26,7 @@ package main
 import (
 	// "fmt"
 	"chunkdb"
-	sync "evalsync"
+	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 )
 
 const (

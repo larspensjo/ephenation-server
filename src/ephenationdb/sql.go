@@ -23,7 +23,7 @@ package ephenationdb
 //
 
 import (
-	sync "evalsync"
+	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"log"
 	"mysql"
 	//	"fmt"

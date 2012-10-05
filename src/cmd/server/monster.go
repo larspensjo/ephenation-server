@@ -29,7 +29,7 @@ import (
 	"client_prot"
 	. "twof"
 	//"fmt"
-	sync "evalsync"
+	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"log"
 	"math"
 	"math/rand"
