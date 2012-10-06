@@ -416,17 +416,19 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 		case CMD_REQ_PLAYER_INFO:
 			uid, _, _ := ParseUint32(buff[3:7])
 			allPlayersSem.RLock()
-			up := allPlayerIdMap[uid]
+			up, ok := allPlayerIdMap[uid]
 			allPlayersSem.RUnlock()
-			l := len(up.pl.name)
-			buff[0] = byte(8 + l)
-			buff[1] = 0
-			buff[2] = CMD_RESP_PLAYER_NAME
-			EncodeUint32(uid, buff[3:7])
-			buff[7] = up.pl.adminLevel
-			copy(buff[8:], up.pl.name)
-			allPlayers[i].writeBlocking_Bl(buff[0 : 8+l])
-			allPlayers[i].ReportEquipment_Bl(up)
+			if ok {
+				l := len(up.pl.name)
+				buff[0] = byte(8 + l)
+				buff[1] = 0
+				buff[2] = CMD_RESP_PLAYER_NAME
+				EncodeUint32(uid, buff[3:7])
+				buff[7] = up.pl.adminLevel
+				copy(buff[8:], up.pl.name)
+				allPlayers[i].writeBlocking_Bl(buff[0 : 8+l])
+				allPlayers[i].ReportEquipment_Bl(up)
+			}
 		case CMD_VRFY_SUPERCHUNCK_CS:
 			if length < 10 || ((length-3)%7 != 0) {
 				// fmt.Printf("Verify Checksum length error!")
