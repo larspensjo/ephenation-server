@@ -35,6 +35,7 @@ var vFlag *int = flag.Int("v", 0, "Verbose")
 var pFlag *string = flag.String("p", "57862", "The network port")
 var oFlag *int = flag.Int("o", 1, "Offset number on player name")
 
+// This lock will allow only one login at a time.
 var waitForAck sync.Mutex
 
 func main() {
@@ -66,7 +67,7 @@ func spawn_simulator(addr string, user string) {
 	cmd := string(len(user)+3) + "\000"
 	login_cmd := []byte(cmd + string(client_prot.CMD_LOGIN) + user)
 	waitForAck.Lock() // Will be unlocked by the login acknowledge
-	if *vFlag >= 2 {
+	if *vFlag > 1 {
 		fmt.Printf("Login %v. ", user)
 	}
 	SendMsg(conn, login_cmd)

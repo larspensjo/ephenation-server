@@ -51,8 +51,9 @@ func CentralControl(conn net.Conn, user string) {
 }
 
 func ListenForServerMessages(ch chan msg_command, conn net.Conn, user string) {
-	var buff [15000]byte
+	var buff [15000]byte // TODO: Ugly naked constant
 	for {
+		// TODO: The mechanism for reading a message is ugly. Use something similar as the C++ client instead.
 		n, err := conn.Read(buff[0:2]) // Only the length
 		if err != nil || n == 0 {
 			if e2, ok := err.(*net.OpError); ok && e2.Temporary() {
@@ -109,16 +110,16 @@ func ListenForServerMessages(ch chan msg_command, conn net.Conn, user string) {
 		case client_prot.CMD_OBJECT_LIST:
 			// List of players or other things. For now, ignore this.
 		case client_prot.CMD_MESSAGE:
-			if *vFlag > 0 {
+			if *vFlag > 1 {
 				fmt.Printf("%s\n", string(buff[3:length]))
 			}
 		case client_prot.CMD_REPORT_COORDINATE:
 			ch <- ReportCoordinateCommand{buff[3:length]}
 		case client_prot.CMD_CHUNK_ANSWER:
-			// fmt.Printf("Got chunk buffwer length %d: %v\n", length, buff[0:length])
+			// fmt.Printf("Got chunk buffer length %d: %v\n", length, buff[0:length])
 			ch <- ReportChunkCommand{buff[3:length]}
 		case client_prot.CMD_LOGIN_ACK:
-			if *vFlag > 1 {
+			if *vFlag > 0 {
 				fmt.Println("User", user, "login ack")
 			}
 			waitForAck.Unlock()

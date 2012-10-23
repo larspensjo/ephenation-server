@@ -1,4 +1,4 @@
 #
 # Start the server with appropriate flags for testing
 #
-go install -v ../... && ./server -chunkdb.disablesave -v=2 -s -testuser -license.v=1
+go install -v ../... && ./server -chunkdb.disablesave -v=2 -s -testuser -license.v=1 $*
