@@ -120,7 +120,7 @@ func DoTestChunkCompression() {
 			}
 		}
 	}
-	ch.compress()
+	ch.compressAndChecksum()
 	ch.rc = nil
 	ch.rc = decompressChunk(ch.ch_comp)
 	// Verify that the content is the same
@@ -322,7 +322,7 @@ func DoTestTriggerBlocks_WLwWLc() {
 	DoTestCheck("DoTestTriggerBlocks message on right activator", m1ok && m2ok)
 
 	// Test that save and restore of this chunk will also restore the activator messages
-	ch.compress() // Update the compressed data
+	ch.compressAndChecksum() // Update the compressed data
 	var buf bytes.Buffer
 	ok := ch.WriteFS(&buf)
 	// fmt.Println("DoTestTriggerBlocks chunk saved", buf.Bytes())

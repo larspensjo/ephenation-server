@@ -96,13 +96,14 @@ const (
 	BT_Trigger   = block(255) // Trig an action when a player pass through
 )
 
-// Flag for chunks, to be used as bits in a 32-bit unsigned integer
+// Flag for chunks, to be used as bits in a 32-bit unsigned integer.
+// These are saved with the chunk to external files, do not change the value of them.
 const (
-	CHF_MODIFIED = 1 << iota // True if the chunk is modified compared to the randomly generated original
+	CHF_MODIFIED = 1 << 0 // True if the chunk is modified compared to the automatically generated original
 )
 
-// This const group defines partition types (sections saved for every chunk on the file). Be careful of changing
-// this numbering if there are saved chunk files.
+// This const group defines partition types (sections saved for every chunk on the file).
+// These are saved with the chunk to external files, do not change the value of them.
 type TPartition uint16
 
 const (
@@ -143,7 +144,7 @@ type chunk struct {
 	ch_comp      []byte             // This pointer always points to something. If no read lock, the pointer may change.
 	ch_comp2     []byte             // Same as ch_comp, but all invisible blocks replaced by air. This is only used for sending to clients. Can be nil to save RAM.
 	checkSum     uint32             // A checksum for this chunk. This is used by clients to identify when there is a new version of the chunk and the old one has to be discarded.
-	flag         uint32             // A bit mapped flag field for this chunk
+	flag         uint32             // A bit mapped flag field for this chunk. They are all named CHF_*.
 	blTriggers   []*BlockTrigger    // List of triggers and detriggers, and what they are connected to. This list is recomputed when chunk is restored from file.
 	sync.RWMutex                    // Provide read and write mutex.
 	owner        uint32             // The owner of this chunk, see OWNER_* below for definitions.
@@ -167,7 +168,7 @@ type raw_chunk [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE]block
 
 // Address of a player. The coordinate is where the player feet are.
 type user_coord struct {
-	X, Y, Z float64 // Offset from the chunk origin.
+	X, Y, Z float64 // Absolute position in the world
 }
 
 // Take a user coordinate and get the chunk coordinate
@@ -207,30 +208,11 @@ func DBChunkFileName(c chunkdb.CC) string {
 	return fmt.Sprintf(CnfgChunkFolder+"/%d,%d,%d", c.X, c.Y, c.Z)
 }
 
-// Replace all invisible blocks by air, and return the compressed structure
-// To be sent to the client.
-func (ch *chunk) GetFilteredBlocks() []byte {
-	if ch.ch_comp2 != nil {
-		return ch.ch_comp2
-	}
-	ch.ch_comp2 = make([]byte, len(ch.ch_comp))
-	for i := 0; i < len(ch.ch_comp); i += 2 {
-		// First the type, and then the count. Don't bother with merging invisible blocks into air block counts now.
-		if blockIsInvisible[ch.ch_comp[i]] {
-			ch.ch_comp2[i] = uint8(BT_Air)
-		} else {
-			ch.ch_comp2[i] = ch.ch_comp[i]
-		}
-		ch.ch_comp2[i+1] = ch.ch_comp[i+1]
-	}
-	return ch.ch_comp2
-}
-
-// The chunk is already locked.
+// Write the chunk out to a file.
+// The chunk is already locked and compressed.
 func (ch *chunk) Write() {
 	// Create file name for this chunk
 	fn := DBChunkFileName(ch.coord)
-	ch.compress()
 	file, err := os.Create(fn)
 	if err != nil {
 		log.Printf("chunk.Write open %s failed: %v\n", fn, err)
@@ -432,7 +414,10 @@ func dBReadChunk(c chunkdb.CC, file io.Reader, size int64) *chunk {
 }
 
 // Compress a chunk to save space. This may overwrite the previous compressed data.
-func (ch *chunk) compress() {
+// A simple format is used, with block type and a count in pairs. The communication
+// protocol depends on this format, so it can't be changed without updating the client.
+// The checksum is done on the compressed data, so it is always updated here.
+func (ch *chunk) compressAndChecksum() {
 	// TODO: It is important that the compression algorithm does not waste too much memory,
 	// But it must still be quick.
 	buff := DynamicBuffer.MakeCompressedBuffer(CHUNK_VOL / 100) // A rough guess for a size
@@ -445,6 +430,7 @@ func (ch *chunk) compress() {
 		}
 	}
 	ch.ch_comp = buff.Bytes()
+	ch.checkSum = crc32.ChecksumIEEE(ch.ch_comp)
 }
 
 func decompressChunk(ch []byte) *raw_chunk {
@@ -466,7 +452,7 @@ func decompressChunk(ch []byte) *raw_chunk {
 	return rc
 }
 
-// Find the block type at a given user coordinate. This is a speed critical function.
+// Find the block type at a given user coordinate. This is a speed critical function, it is used very frequently.
 func DBGetBlock_WLwWLc(uc user_coord) block {
 	cc := uc.GetChunkCoord()
 	cp := ChunkFind_WLwWLc(cc)
@@ -513,11 +499,8 @@ func DBGetBlockCached_WLwWLc(uc user_coord) block {
 	return rc[x_off][y_off][z_off]
 }
 
-// The checksum is computed on the compressed data. This means that the data must be compressed first.
-func (this *chunk) updateChecksum() {
-	this.checkSum = crc32.ChecksumIEEE(this.ch_comp)
-}
-
+// Update a block in a chunks. The changed block must be air before or after.
+// Return true if successful.
 // The update of the chunk should possibly be done by a worldDB process.
 func (cp *chunk) UpdateBlock_WLcWLw(x_off, y_off, z_off uint8, blType block) bool {
 	cp.Lock()
@@ -533,12 +516,11 @@ func (cp *chunk) UpdateBlock_WLcWLw(x_off, y_off, z_off uint8, blType block) boo
 	}
 
 	rc[x_off][y_off][z_off] = blType
-	cp.compress()       // Make a new compressed chunk
-	cp.updateChecksum() // Update the time stamp
+	cp.compressAndChecksum() // Create the compressed copy
 	cp.flag |= CHF_MODIFIED
-	// Save it permanently. TODO: Use delayed write to improve performance. The reason for this is
-	// that the chunk usually updates again. However, a delayed compress can't be used as that would delay the
-	// checksum, which must be updated before the function is ended.
+	// Save it permanently. TODO: Use delayed write to improve performance.
+	// However, a delayed compress can't be used as that would delay the
+	// checksum, which must be updated before this function is ended.
 	if !*inhibitCreateChunks {
 		cp.Write()
 	}

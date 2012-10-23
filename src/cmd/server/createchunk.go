@@ -175,8 +175,7 @@ func dBCreateChunk(c chunkdb.CC) *chunk {
 			}
 		}
 	}
-	ch.compress()
-	ch.updateChecksum()
+	ch.compressAndChecksum()
 	ch.touched = true
 	delta := time.Now().Sub(start)
 	DBCreateStats.Num++
