@@ -619,6 +619,8 @@ func init() {
 	blockIsPermeable[BT_BigFog] = true
 	blockIsPermeable[BT_Treasure] = true
 	blockIsPermeable[BT_Quest] = true
+	blockIsPermeable[BT_Lamp1] = true
+	blockIsPermeable[BT_Lamp2] = true
 }
 
 // Update the Z position of an object, taking into account ground level and z speed. The argument is updated,
