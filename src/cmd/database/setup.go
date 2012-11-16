@@ -62,5 +62,5 @@ func main() {
 		log.Println("Config file", configFileName, "missing, or no section 'db'")
 	}
 	db := ephenationdb.New()
-	log.Println(db)
+	chunkdata(db.C("chunkdata"))
 }
