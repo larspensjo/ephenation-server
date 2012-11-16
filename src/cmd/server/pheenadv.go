@@ -57,6 +57,13 @@ var (
 
 func main() {
 	flag.Parse()
+
+	if !*logOnStdout {
+		logFile, _ := os.OpenFile(*logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		log.SetOutput(logFile)
+	}
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	cnfg, err := config.ReadDefault(*configFileName)
 	if err != nil {
 		log.Println("Fail to find", *configFileName, err)
@@ -102,11 +109,6 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile() // Also done from special command /shutdown
 	}
-	if !*logOnStdout {
-		logFile, _ := os.OpenFile(*logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-		log.SetOutput(logFile)
-	}
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	if *tflag {
 		DoTest()
 		return
