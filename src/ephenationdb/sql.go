@@ -25,13 +25,13 @@ package ephenationdb
 import (
 	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"log"
-	"mysql"
 	//	"fmt"
+	"labix.org/v2/mgo"
 	"time"
 )
 
 var (
-	cachedb            *mysql.Client
+	cachedb            *mgo.Database
 	mutex              sync.RWMutex // This lock shall be active when the local cache is accessed
 	released           time.Time    // When the current db, if any, was released
 	countFailure       int
@@ -54,7 +54,7 @@ func SetConnection(server, name, login, pwd string) {
 }
 
 // Get a connection. Notice that this shall not be called from initialization thread.
-func New() *mysql.Client {
+func New() *mgo.Database {
 	mutex.Lock()
 	db := cachedb
 	now := time.Now()
@@ -71,8 +71,7 @@ func New() *mysql.Client {
 	mutex.Unlock()
 	if db == nil {
 		// There was no local cache to be used
-		var err error
-		db, err = mysql.DialTCP(dbLicenseDatabase, dbDatabaseLogin, dbDatabasePassword, dbDatabaseName)
+		session, err := mgo.Dial("mongodb://" + dbDatabaseLogin + ":" + dbDatabasePassword + "@" + dbLicenseDatabase)
 		if err != nil {
 			countFailure++
 			if countFailure == maxRetries {
@@ -82,17 +81,18 @@ func New() *mysql.Client {
 			}
 		} else {
 			countFailure = 0
+			db = session.DB(dbDatabaseName)
 		}
 	}
 	return db
 }
 
 // Release a connection. After release, it must not be used again.
-func Release(db *mysql.Client) {
+func Release(db *mgo.Database) {
 	mutex.Lock()
 	if cachedb != nil {
 		// Not able to save any more client connections, delete the old one
-		cachedb.Close()
+		// TODO: Not needed?
 	}
 	// Save the returned client connection, to be reused
 	cachedb = db

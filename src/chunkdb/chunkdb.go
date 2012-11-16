@@ -26,8 +26,8 @@ import (
 	"ephenationdb"
 	"flag"
 	"fmt"
+	"labix.org/v2/mgo"
 	"log"
-	"mysql"
 	"os"
 )
 
@@ -49,7 +49,7 @@ type request struct {
 var (
 	disableSave = flag.Bool("chunkdb.disablesave", false, "Disable saving any data. Used for testing.")
 	ch          = make(chan request, 100)
-	db          *mysql.Client
+	db          *mgo.Database
 )
 
 // Take a chunk address, a chunk pointer and a callback function.
