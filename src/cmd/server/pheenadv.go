@@ -69,28 +69,21 @@ func main() {
 		log.Println("Fail to find", *configFileName, err)
 		return
 	}
-	if cnfg.HasSection("sql") {
-		server, err := cnfg.String("sql", "DatabaseServer")
+	configSection := "db"
+	if cnfg.HasSection(configSection) {
+		f := func(key string) string {
+			value, err := cnfg.String(configSection, key)
+			if err != nil {
+				log.Println("Config file", *configFileName, "Failt to find key", key, err)
+				return ""
+			}
+			return value
+		}
+		err = ephenationdb.SetConnection(f)
 		if err != nil {
-			log.Println(*configFileName, "DatabaseServer:", err)
+			log.Println("main: open DB:", err)
 			return
 		}
-		name, err := cnfg.String("sql", "DatabaseName")
-		if err != nil {
-			log.Println(*configFileName, "DatabaseName:", err)
-			return
-		}
-		login, err := cnfg.String("sql", "DatabaseLogin")
-		if err != nil {
-			log.Println(*configFileName, "DatabaseLogin:", err)
-			return
-		}
-		pwd, err := cnfg.String("sql", "DatabasePassword")
-		if err != nil {
-			log.Println(*configFileName, "DatabasePassword:", err)
-			return
-		}
-		ephenationdb.SetConnection(server, name, login, pwd)
 	} else {
 		log.Println("Config file", configFileName, "missing, or no section 'sql'")
 	}

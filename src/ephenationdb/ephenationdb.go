@@ -32,10 +32,15 @@ var (
 	session *mgo.Session
 )
 
-// Initialize with connection data
-func SetConnection(server, name, login, pwd string) error {
+// Initialize with connection data.
+// The argument is a function that shall provide necessary data for the connection.
+func SetConnection(f func(string) string) error {
+	login := f("DatabaseLogin")
+	pwd := f("DatabasePassword")
+	server := f("DatabaseServer")
+	database := f("DatabaseName")
 	var err error
-	session, err = mgo.Dial("mongodb://" + login + ":" + pwd + "@" + server + "/" + name)
+	session, err = mgo.Dial("mongodb://" + login + ":" + pwd + "@" + server + "/" + database)
 	if err == nil {
 		session.SetMode(mgo.Strong, true)
 	}
