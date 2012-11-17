@@ -19,6 +19,7 @@ package main
 
 import (
 	"chunkdb"
+	"encoding/json"
 	"ephenationdb"
 	"flag"
 	"fmt"
@@ -49,6 +50,7 @@ var (
 	logOnStdout         = flag.Bool("s", false, "Send log file to standard otput")
 	inhibitCreateChunks = flag.Bool("nocreate", false, "Only load modified chunks, and save no changes")
 	configFileName      = flag.String("configfile", "config.ini", "General configuration file")
+	dumpsql             = flag.Bool("dumpsql", false, "Create a dump of the complete SQL DB, and then exit")
 
 	trafficStatistics = traffic.New()
 	superChunkManager = superchunk.New(CnfgSuperChunkFolder)
@@ -107,6 +109,11 @@ func main() {
 		log.SetOutput(logFile)
 	}
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+	if *dumpsql {
+		DumpSQL()
+		os.Exit(0)
+	}
 	if *tflag {
 		DoTest()
 		return
@@ -186,4 +193,106 @@ func ConvertFiles() {
 		}
 	}
 	fmt.Printf("%d Modified, %d non modified\n", mod, unmod)
+}
+
+func DumpSQL() {
+	db := ephenationdb.New()
+	if db == nil {
+		return
+	}
+	defer ephenationdb.Release(db)
+
+	// Build a query for the avatar name sent as an argument
+	// TODO: Assert that the avatar name is unique and on this server for the current user?
+	query := "SELECT name,jsonstring,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ FROM avatars"
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// Execute statement
+	err = stmt.Execute()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// Some helper variables
+	var packedline string
+	var uid uint32
+	var packedInv []byte
+	var terrScore, terrScoreBalance float64
+	var terrScoreTimestamp uint32
+	// Booleans doesn't work
+	var flying, climbing, dead int
+	var pl player
+	stmt.BindResult(&pl.name, &packedline, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
+		&pl.exp, &pl.hitPoints, &pl.mana, &pl.numKill, &pl.homeSP.X, &pl.homeSP.Y, &pl.homeSP.Z, &pl.reviveSP.X, &pl.reviveSP.Y, &pl.reviveSP.Z, &pl.maxchunks,
+		&pl.blockAdd, &pl.blockRem, &pl.timeOnline, &pl.head, &pl.body, &packedInv, &terrScore, &terrScoreBalance, &terrScoreTimestamp,
+		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z)
+
+	for {
+		eof, err := stmt.Fetch()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if eof {
+			break
+		}
+		// Some post processing
+		if flying == 1 {
+			pl.flying = true
+		}
+		if climbing == 1 {
+			pl.climbing = true
+		}
+		if dead == 1 {
+			pl.dead = true
+		}
+
+		if pl.maxchunks == -1 {
+			// This parameter was not initialized.
+			pl.maxchunks = CnfgMaxOwnChunk
+		}
+		DumpSQLPlayer(&pl, packedline, packedInv)
+	}
+}
+
+func DumpSQLPlayer(pl *player, packedline string, packedInv []byte) {
+
+	// log.Println(pl.targetCoor)
+
+	pl.logonTimer = time.Now()
+	var err error
+
+	if err = json.Unmarshal([]uint8(packedline), pl); err != nil {
+		log.Printf("Unmarshal player %s: %v (%v)\n", pl.name, err, packedline)
+		// TODO: This covers errors when updating the jsonstring, should be handled in a more approperiate way
+		//return 0, false
+	}
+
+	// If there was data in the inventory "blob", unpack it.
+	if len(packedInv) > 0 {
+		err = pl.inventory.Unpack([]byte(packedInv))
+		if err != nil {
+			log.Println("Failed to unpack", err, packedInv)
+		}
+		// Save what can be saved, and remove unknown objects.
+		pl.inventory.CleanUp()
+	}
+	if *verboseFlag > 1 {
+		log.Println("Inventory unpacked", pl.inventory)
+	}
+
+	//fmt.Printf("Coord: (%v,%v,%v)\n", pl.coord.X, pl.coord.Y, pl.coord.Z )
+
+	if pl.reviveSP.X == 0 && pl.reviveSP.Y == 0 && pl.reviveSP.Z == 0 {
+		// Check if there is any spawn point defined.
+		pl.reviveSP = pl.coord
+		pl.homeSP = pl.coord
+	}
+
+	fmt.Printf("User: %#v\n", pl)
 }
