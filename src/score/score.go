@@ -26,10 +26,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"launchpad.net/tomb"
 	"log"
 	"math"
-	"mysql"
 	"sync"
 	"time"
 	"timerstats"
@@ -226,10 +227,6 @@ func update(list []*territoryScore) {
 		return
 	}
 	db := ephenationdb.New()
-	if db == nil {
-		return // Give it up for this time
-	}
-	defer ephenationdb.Release(db)
 	now := time.Now()
 	for _, ts := range list {
 		if !ts.initialized {
@@ -254,52 +251,34 @@ func update(list []*territoryScore) {
 }
 
 // Load SDB DB score data for territory ts.uid.
-func loadFromSQL(db *mysql.Client, ts *territoryScore) {
-	query := "SELECT TScoreTotal,TScoreBalance,TScoreTime,name FROM avatars WHERE ID='" + fmt.Sprint(ts.uid) + "'"
-	stmt, err := db.Prepare(query)
+func loadFromSQL(db *mgo.Database, ts *territoryScore) {
+	var avatarScore struct {
+		TScoreTotal, TScoreBalance float64
+		TScoreTime                 uint32
+		Name                       string
+	}
+	query := db.C("avatars").FindId(ts.uid)
+	err := query.One(&avatarScore)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	// Execute statement
-	err = stmt.Execute()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	var terrScore, terrScoreBalance float64
-	var terrScoreTimestamp uint32
-	var name string
-	stmt.BindResult(&terrScore, &terrScoreBalance, &terrScoreTimestamp, &name)
-	for {
-		eof, err := stmt.Fetch()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if eof {
-			break
-		}
-	}
 	numChunks := countChunks(db, ts.uid)
-	Initialize(ts.uid, terrScore, terrScoreBalance, terrScoreTimestamp, name, numChunks)
+	Initialize(ts.uid, avatarScore.TScoreTotal, avatarScore.TScoreBalance, avatarScore.TScoreTime, avatarScore.Name, numChunks)
 }
 
-func saveToSQL(db *mysql.Client, ts *territoryScore) {
-	ts.modified = false
-	query := "UPDATE avatars SET TScoreTotal=?,TScoreBalance=?,TScoreTime=? WHERE ID='" + fmt.Sprint(ts.uid) + "'"
-
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Println(err)
-		return
+func saveToSQL(db *mgo.Database, ts *territoryScore) {
+	var avatarScore struct {
+		TScoreTotal, TScoreBalance float64
+		TScoreTime                 uint32
 	}
-
-	stmt.BindParams(ts.Score, ts.ScoreBalance, ts.TimeStamp.Unix())
-
-	err = stmt.Execute()
+	avatarScore.TScoreTotal = ts.Score
+	avatarScore.TScoreBalance = ts.ScoreBalance
+	avatarScore.TScoreTime = uint32(ts.TimeStamp.Unix())
+	c := db.C("avatars")
+	err := c.UpdateId(ts.uid, avatarScore)
+	ts.modified = false
 	if err != nil {
 		log.Println(err)
 		return
@@ -307,24 +286,13 @@ func saveToSQL(db *mysql.Client, ts *territoryScore) {
 }
 
 // Count the number of chunks this player has
-func countChunks(db *mysql.Client, uid uint32) int {
-	// Build a query for the given chunk coordinate as an argument
-	query := fmt.Sprintf("SELECT * FROM chunkdata WHERE avatarID=%d", uid)
-	err := db.Query(query)
-	if err != nil {
-		// Fatal error
-		log.Println(err)
-		return ConfigHandicapLimit
-	}
-
-	// Store the result
-	result, err := db.StoreResult()
+func countChunks(db *mgo.Database, uid uint32) int {
+	query := db.C("chunkdata").Find(bson.M{"avatarID": uid})
+	numRows, err := query.Count()
 	if err != nil {
 		log.Println(err)
 		return ConfigHandicapLimit
 	}
-	numRows := result.RowCount()
 
-	db.FreeResult()
 	return int(numRows)
 }

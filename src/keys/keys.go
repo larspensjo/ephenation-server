@@ -25,7 +25,7 @@ const (
 )
 
 type keyDefinition struct {
-	Uid   uint32 // This is the territory owner that created the key.
+	Uid   uint32 // The territory owner that created the key.
 	Kid   uint   // The unique id of the key, for the given territory owner.
 	Descr string // A one line description of the key.
 	View  uint   // How it looks. This is used by the client to choose a display.

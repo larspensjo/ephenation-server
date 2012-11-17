@@ -41,13 +41,16 @@ func SetConnection(f func(string) string) error {
 	database := f("DatabaseName")
 	var err error
 	session, err = mgo.Dial("mongodb://" + login + ":" + pwd + "@" + server + "/" + database)
-	if err == nil {
+	if err != nil {
 		session.SetMode(mgo.Strong, true)
 	}
 	return err
 }
 
-// Get a connection.
+// Get a connection to the default database
 func New() *mgo.Database {
-	return session.DB("")
+	if session != nil {
+		return session.DB("")
+	}
+	return nil
 }

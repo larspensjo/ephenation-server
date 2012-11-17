@@ -21,7 +21,8 @@
 db.chunkdata.ensureIndex({"x":1, "y":1, "z":1}, {unique:true})
 db.chunkdata.ensureIndex({"avatarID":1}, {unique:true})
 
-db.avatars.ensureIndex({"name":1}, {unique:true})
+db.avatars.ensureIndex({"name":1}, {unique:true}) // Avatar name must be unique
+db.avatars.ensureIndex({"owner":1}, {unique:true}) // Only one avatar per owner
 db.counters.insert({_id: "avatarId", c: 0}) // A document to produce avatar IDs
 // db.avatars.ensureIndex({"id":1}, {unique:true}) // _id is used for the avatar ID
 

@@ -25,8 +25,8 @@ package chunkdb
 import (
 	"ephenationdb"
 	"flag"
-	"fmt"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"log"
 	"os"
 )
@@ -114,39 +114,13 @@ func (this CC) UpdateLSB(x, y, z uint8) (ret CC) {
 
 // Find the avatar ID for a chunk. Return 0 when none found.
 func readChunk_Bl(chunk CC) uint32 {
-	// Build a query for the given chunk coordinate as an argument
-	query := fmt.Sprintf("SELECT * FROM chunkdata WHERE x=%d AND y=%d AND z=%d", chunk.X, chunk.Y, chunk.Z)
-	err := db.Query(query)
+	var avatarID uint32
+	err := db.C("chunkdata").Find(bson.M{"x": chunk.X, "y": chunk.Y, "z": chunk.Z}).One(bson.M{"_id": &avatarID})
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
 		return 0
 	}
-
-	// Store the result
-	result, err := db.UseResult()
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-		return 0
-	}
-
-	// Fetch row
-	row := result.FetchRow()
-	if row == nil {
-		defer db.FreeResult()
-		return 0
-	}
-
-	avatarID := uint32(0)
-	for x := 0; x < int(result.FieldCount()); x++ {
-		FieldName := result.FetchField().Name
-		switch FieldName {
-		case "avatarID":
-			avatarID = uint32(row[x].(uint64))
-		}
-	}
-	defer db.FreeResult()
 	return avatarID
 }
 
@@ -154,57 +128,12 @@ func readChunk_Bl(chunk CC) uint32 {
 // Return false in case of failure
 func ReadAvatar_Bl(avatarID uint32) ([]CC, bool) {
 	db = ephenationdb.New()
-	if db == nil {
-		log.Println("chunkdb.ReadAvatar_Bl failed")
-		return nil, false
-	}
-	defer ephenationdb.Release(db)
-	// Build a query for the given chunk coordinate as an argument
-	query := fmt.Sprintf("SELECT * FROM chunkdata WHERE avatarID=%d", avatarID)
-	err := db.Query(query)
-	if err != nil {
-		// Fatal error
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	// Store the result
-	result, err := db.StoreResult()
+	var ret []CC
+	err := db.C("chunkdata").Find(bson.M{"avatarID": avatarID}).All(&ret)
 	if err != nil {
 		log.Println(err)
 		return nil, false
 	}
-
-	// Fetch all rows
-	rows := result.FetchRows()
-	numRows := result.RowCount()
-	FieldNames := result.FetchFields()
-
-	// fmt.Printf("chunkdb.ReadAvatar rows: %v. numRows: %v\n", rows, numRows)
-	if rows == nil || numRows == 0 {
-		db.FreeResult()
-		return nil, true
-	}
-
-	ret := make([]CC, numRows)
-
-	for r, row := range rows {
-		cnt := int(result.FieldCount())
-		for i := 0; i < cnt; i++ {
-			switch FieldNames[i].Name {
-			case "x":
-				ret[r].X = int32(row[i].(int64))
-			case "y":
-				ret[r].Y = int32(row[i].(int64))
-			case "z":
-				ret[r].Z = int32(row[i].(int64))
-			}
-		}
-	}
-
-	db.FreeResult()
-
-	// fmt.Printf("chunkdb.ReadAvatar: Avatar %d (%d,%d,%d)\n", avatarID, x, y, z)
 	return ret, true
 }
 
@@ -214,31 +143,17 @@ func SaveAvatar_Bl(avatar uint32, chunks []CC) bool {
 		// Ignore the save, pretend everything is fine
 		return true
 	}
-	db = ephenationdb.New()
-	if db == nil {
-		return false
-	}
-	defer ephenationdb.Release(db)
-	// First delete the current allocation, and replace with the new
-	query := fmt.Sprintf("DELETE FROM chunkdata WHERE avatarID=%d", avatar)
-	err := db.Query(query)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
+	c := ephenationdb.New().C("chunkdata")
+
 	if len(chunks) == 0 {
 		return true
 	}
-	query = "INSERT INTO chunkdata (x,y,z,avatarID) VALUES "
-	comma := ""
 	for _, ch := range chunks {
-		query += fmt.Sprintf("%s(%d,%d,%d,%d)", comma, ch.X, ch.Y, ch.Z, avatar)
-		comma = ","
-	}
-	err = db.Query(query)
-	if err != nil {
-		log.Println(err)
-		return false
+		_, err := c.Upsert(bson.M{"x": ch.X, "y": ch.Y, "z": ch.Z}, bson.M{"x": ch.X, "y": ch.Y, "z": ch.Z, "avatarID": avatar})
+		if err != nil {
+			log.Println(err)
+			return false
+		}
 	}
 	return true
 }
