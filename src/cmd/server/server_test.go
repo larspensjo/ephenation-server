@@ -28,7 +28,7 @@ import (
 func TestInventory(t *testing.T) {
 	var up user
 	up.conn = MakeDummyConn()
-	inv := &up.pl.inventory
+	inv := &up.pl.Inventory
 	if inv.Len() != 0 {
 		t.Error("Not empty", inv)
 	}
@@ -55,13 +55,13 @@ func TestInventory(t *testing.T) {
 		t.Error("Shall still be two entries", inv)
 	}
 
-	if up.pl.hitPoints != 0 || up.pl.mana != 0 {
+	if up.pl.HitPoints != 0 || up.pl.Mana != 0 {
 		t.Error("Initial condition for hp and mana wrong")
 		t.FailNow()
 	}
 
 	inv.Use(ItemHealthPotionID, 0, &up)()
-	if up.pl.hitPoints == 0 {
+	if up.pl.HitPoints == 0 {
 		t.Error("Failed to use healing pot", inv)
 	}
 	if inv.Len() != 2 {
@@ -74,7 +74,7 @@ func TestInventory(t *testing.T) {
 	}
 
 	inv.Use(ItemManaPotionID, 0, &up)()
-	if up.pl.mana == 0 {
+	if up.pl.Mana == 0 {
 		t.Error("Failed to use mana potion")
 	}
 	if inv.Len() != 1 {

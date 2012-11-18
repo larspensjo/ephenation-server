@@ -62,7 +62,7 @@ func (up *user) writeNonBlocking(b []byte) {
 		panic("Wrong length of message")
 	}
 	if *verboseFlag > 2 {
-		log.Printf("Non blocking Send to %v '%v'\n", up.pl.name, b)
+		log.Printf("Non blocking Send to %v '%v'\n", up.pl.Name, b)
 	}
 	select {
 	case up.channel <- b:
@@ -118,7 +118,7 @@ func ReportOneInventoryItem_WluBl(up *user, code string, lvl uint32) {
 	// b[7] = 0 // Default count is 0
 	EncodeUint32(lvl, b[8:12])
 	up.RLock()
-	inv := up.pl.inventory
+	inv := up.pl.Inventory
 	l := inv.Len()
 	for i := 0; i < l; i++ {
 		obj := inv.Get(i)
@@ -139,7 +139,7 @@ func ReportOneInventoryItem_WluBl(up *user, code string, lvl uint32) {
 
 func AddOneObjectToUser_WLuBl(up *user, obj inventory.Object) {
 	up.Lock()
-	up.pl.inventory.Add(obj)
+	up.pl.Inventory.Add(obj)
 	up.Unlock()
 	ReportOneInventoryItem_WluBl(up, obj.ID(), obj.GetLevel())
 }

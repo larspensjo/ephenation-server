@@ -55,7 +55,7 @@ func DoTest() {
 	DoTestQuadtree_WLq()
 	DoTestMonsterSpawnAndPurge_WLuWLqBlWLwWLaWLmWLc()
 	DoTestEncrypt()
-	dbok := DoTestSQL()
+	dbok := (ephenationdb.New() != nil)
 	if dbok {
 		DoTestLicense_Bl()
 	}
@@ -242,7 +242,6 @@ func DoTestLicense_Bl() {
 		pass  = "abcdefABCDEF"
 	)
 	lic := license.Make(email)
-	lic.Names = []string{name}
 	lic.License = license.GenerateKey()
 	lic.NewPassword(pass)
 	if *verboseFlag > 0 {
@@ -252,9 +251,6 @@ func DoTestLicense_Bl() {
 	saveSuccess := lic.Save_Bl()
 	DoTestCheck("DoTestLicense Save", saveSuccess)
 	lic2 := license.Load_Bl(email)
-	if *verboseFlag > 0 {
-		fmt.Printf("DoTestLicense load lic2 %#v\n", lic2)
-	}
 	DoTestCheck("DoTestLicense Load", lic2 != nil)
 	if lic2 != nil {
 		DoTestCheck("DoTestLicense VerifyPassword2", lic2.VerifyPassword(pass, encryptionSalt))
@@ -330,7 +326,7 @@ func DoTestTriggerBlocks_WLwWLc() {
 	if !ok {
 		return
 	}
-	ch2 := dBReadChunk(ch.coord, &buf, int64(buf.Len()))
+	ch2 := dBReadChunk(ch.Coord, &buf, int64(buf.Len()))
 	DoTestCheck("DoTestTriggerBlocks equal", DoTestChunkCompare(ch, ch2))
 	DoTestCheck("DoTestTriggerBlocks DeTrigger Read", len(ch2.blTriggers) == 4 && len(ch2.triggerMsgs) == 2) // Two triggers times two activators
 	for _, trig := range ch.blTriggers {
@@ -389,8 +385,8 @@ func DoTestActivatorConditions() {
 	var up user
 	var ac *user_coord
 	up.conn = MakeDummyConn()
-	up.pl.level = 9
-	up.pl.adminLevel = 5
+	up.pl.Level = 9
+	up.pl.AdminLevel = 5
 	inhibit, terminate, _ := up.ActivatorMessage_WLuWLqWLmWLc("X", ac, nil, 0)
 	DoTestCheck("DoTestActivatorConditions default inhibit", inhibit == -1 && terminate == false)
 	_, terminate, _ = up.ActivatorMessage_WLuWLqWLmWLc("/level<10 X", ac, nil, 0)
@@ -492,28 +488,28 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 	DoTestCheck("DoTestPlayerManagement uid assoc", ok == true)
 
 	pl := &up.pl
-	DoTestCheck("DoTestPlayerManagement test0 starting point x", pl.coord.X == 0)
-	DoTestCheck("DoTestPlayerManagement test0 starting point y", pl.coord.Y == 0)
-	DoTestCheck("DoTestPlayerManagement test0 starting point z", pl.coord.Z >= 0)
+	DoTestCheck("DoTestPlayerManagement test0 starting point x", pl.Coord.X == 0)
+	DoTestCheck("DoTestPlayerManagement test0 starting point y", pl.Coord.Y == 0)
+	DoTestCheck("DoTestPlayerManagement test0 starting point z", pl.Coord.Z >= 0)
 	DoTestCheck("DoTestPlayerManagement test0 initially stationary", pl.ZSpeed == 0)
-	coord := pl.coord
+	coord := pl.Coord
 	newZSpeed := UpdateZPos_WLwWLc(1e8, 0, &coord)
-	DoTestCheck("DoTestPlayerManagement test0 stationary", coord.Z == pl.coord.Z && newZSpeed == 0)
+	DoTestCheck("DoTestPlayerManagement test0 stationary", coord.Z == pl.Coord.Z && newZSpeed == 0)
 	// Verify jumping
 	up.CmdPlayerMove_WLuWLqWLmWLwWLc(client_prot.CMD_JUMP)
 	// println("DoTestPlayerManagement zspeed", pl.ZSpeed)
 	for i := 0; i < 10; i++ {
-		pl.ZSpeed = UpdateZPos_WLwWLc(1e8, pl.ZSpeed, &pl.coord)
+		pl.ZSpeed = UpdateZPos_WLwWLc(1e8, pl.ZSpeed, &pl.Coord)
 		up.checkOnePlayerPosChanged_RLuWLqBl(false) // Report should be generated that the player moved
 		if i == 0 {
 			DoTestCheck("DoTestPlayerManagement prev coord updated",
-				pl.coord.X == up.prevCoord.X && pl.coord.Y == up.prevCoord.Y && pl.coord.Z == up.prevCoord.Z)
+				pl.Coord.X == up.prevCoord.X && pl.Coord.Y == up.prevCoord.Y && pl.Coord.Z == up.prevCoord.Z)
 		}
 		// println("DoTestPlayerManagement zspeed", pl.ZSpeed)
 	}
 	// Player should now be at stand still again.
 	DoTestCheck("DoTestPlayerManagement test0 stationary after jump", pl.ZSpeed == 0)
-	DoTestCheck("DoTestPlayerManagement test0 back to start after jump", pl.coord.Z == coord.Z)
+	DoTestCheck("DoTestPlayerManagement test0 back to start after jump", pl.Coord.Z == coord.Z)
 	DoTestCheck("DoTestPlayerManagement player moved Z", conn.TestCommandSeen(client_prot.CMD_REPORT_COORDINATE))
 	// Test that the player is maintained correctly in the quadtree
 	DoTestCheck("DoTestPlayerManagement quadtree 1 player", !playerQuadtree.Empty())
@@ -526,7 +522,7 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 		playerQuadtree.Empty()
 	}
 	// fmt.Println(playerQuadtree.String())
-	pl.coord.X += QuadtreeInitSize / 2          // Enough to move the player to a different section in the quadtree
+	pl.Coord.X += QuadtreeInitSize / 2          // Enough to move the player to a different section in the quadtree
 	up.checkOnePlayerPosChanged_RLuWLqBl(false) // This will update the quadtree
 	// fmt.Println(playerQuadtree.String())
 	DoTestCheck("DoTestPlayerManagement player moved X", conn.TestCommandSeen(client_prot.CMD_REPORT_COORDINATE))
@@ -563,13 +559,21 @@ func DoTestCoordinates() {
 
 func DoTestChunkdb_WLwBlWLc() {
 	const (
-		testName  = "verifying"   // This is a special name allocated in the avatar DB for testing.
+		testName  = "a@b"         // This is a special name allocated in the avatar DB for testing.
 		testCoord = math.MaxInt32 // Too far away for anyone to reach
 	)
 	pl := &player{}
 	begin := time.Now()
-	uid, ok := pl.Load_WLwBlWLc(testName)
-	DoTestCheck("DoTestChunkdb: pl.Load() success", ok)
+	ok := pl.Load_WLwBlWLc(testName)
+	DoTestCheck("DoTestChunkdb: pl.Load()", ok)
+	if !ok {
+		// The load failed, or there was no avatar in the DB for this test. Create one.
+		pl.Name = "verifying"
+		pl.Id = OWNER_TEST
+		pl.Owner = testName
+		ok = pl.Save_Bl()
+		DoTestCheck("DoTestChunkdb: pl.Save_Bl() after load failure", ok)
+	}
 	delta := time.Now().Sub(begin)
 	if *verboseFlag > 0 {
 		fmt.Printf("DoTestChunkdb: pl.Load() %d ms\n", delta/1e6)
@@ -581,50 +585,32 @@ func DoTestChunkdb_WLwBlWLc() {
 	chunk2 := chunkdb.CC{0, testCoord, 0}
 	chunk3 := chunkdb.CC{0, 0, testCoord}
 	chunkList := []chunkdb.CC{chunk1, chunk2, chunk3}
-	ok = chunkdb.SaveAvatar_Bl(uid, chunkList)
+	ok = chunkdb.SaveAvatar_Bl(pl.Id, chunkList)
 	DoTestCheck("DoTestChunkdb: chunkdb.SaveAvatar() success", ok)
 
 	// Load the player again, and verify that the chunk list is updated.
-	_, ok = pl.Load_WLwBlWLc(testName)
+	ok = pl.Load_WLwBlWLc(testName)
 	DoTestCheck("DoTestChunkdb: second pl.Load() success", ok)
 	terr = pl.territory
 	DoTestCheck("DoTestChunkdb: Territory list now exists", len(terr) == 3)
 	// fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
 	// The returned list is in the opposite order. It is probably incorrect to assume that.
 	// TODO: This test usually fail, and then succeed next time!
-	DoTestCheck("DoTestChunkdb: Same territory list", terr[0].Equal(chunk3) && terr[1].Equal(chunk2) && terr[2].Equal(chunk1))
+	DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk3) && terr[1].Equal(chunk2) && terr[2].Equal(chunk1))
 
 	// Clean up and clear the territory list
-	ok = chunkdb.SaveAvatar_Bl(uid, nil)
+	ok = chunkdb.SaveAvatar_Bl(pl.Id, nil)
 	DoTestCheck("DoTestChunkdb: chunkdb.SaveAvatar(nil) success", ok)
-	_, ok = pl.Load_WLwBlWLc(testName)
+	ok = pl.Load_WLwBlWLc(testName)
 	DoTestCheck("DoTestChunkdb: third pl.Load() success", ok)
 	DoTestCheck("DoTestChunkdb: Final empty territory list", pl.territory == nil)
-}
-
-// Some rudimentary tests to get SQL connections
-func DoTestSQL() bool {
-	db := ephenationdb.New()
-	DoTestCheck("DoTestSQL Got connection", db != nil)
-	if db == nil {
-		// Cancel the other tests
-		return false
-	}
-	ephenationdb.Release(db)
-	db2 := ephenationdb.New()
-	DoTestCheck("DoTestSQL Got same (cached) connection again", db2 == db)
-	db3 := ephenationdb.New()
-	DoTestCheck("DoTestSQL Got new connection", db3 != db2 && db3 != nil)
-	ephenationdb.Release(db3)
-	ephenationdb.Release(db2)
-	return true
 }
 
 func DoTestCombat_WLuBl() {
 	var u user
 	var m monster
 
-	u.pl.level = 0
+	u.pl.Level = 0
 	conn := MakeDummyConn()
 	u.conn = conn
 	// Test damage from a level 0 player on a monster of various levels.
@@ -636,7 +622,7 @@ func DoTestCombat_WLuBl() {
 		}
 		m.Level = uint32(lvl)
 		m.HitPoints = 1
-		u.pl.hitPoints = 1
+		u.pl.HitPoints = 1
 		m.Hit_WLuBl(&u, 1)
 		// fmt.Printf("DoTestCombat %v, new hp: %v\n", lvl, m.HitPoints)
 		DoTestCheck("DoTestCombat_WLu No damage on high level monster", m.HitPoints > 0.99)
@@ -659,7 +645,7 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 		ID2 = 2
 	)
 	var up2 user // Create a new user, that will create friends
-	up2.uid = ID1
+	up2.pl.Id = ID1
 	notFound, alreadyIn := up2.AddToListener_RLaWLu(name)
 	// fmt.Printf("notFound %v, alreadyIn %v\n", notFound, alreadyIn)
 	DoTestCheck("DoTestFriends: AddToListener success", notFound == false && alreadyIn == false)
@@ -669,7 +655,7 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 	DoTestCheck("DoTestFriends: AddToListener duplicate", notFound == false && alreadyIn == true)
 	DoTestCheck("DoTestFriends: One entry listener list again", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID1)
 
-	up2.uid = ID2 // Now test with the next ID
+	up2.pl.Id = ID2 // Now test with the next ID
 	notFound, alreadyIn = up2.AddToListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: AddToListener ID2 success", notFound == false && alreadyIn == false)
 	DoTestCheck("DoTestFriends: Two entries listener list", len(up.pl.Listeners) == 2 && up.pl.Listeners[1] == ID2)
@@ -683,13 +669,13 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 	DoTestCheck("DoTestFriends: Two entries listener list", len(up.pl.Listeners) == 2 && up.pl.Listeners[1] == ID2)
 
 	// Remove ID1 this time
-	up2.uid = ID1
+	up2.pl.Id = ID1
 	notFound, notIn = up2.RemoveFromListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: RemoveFromListener ID1 success", notFound == false && notIn == false)
 	DoTestCheck("DoTestFriends: One entry listener list after removal", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID2)
 
 	// Remove ID2, which is now the only one
-	up2.uid = ID2
+	up2.pl.Id = ID2
 	notFound, notIn = up2.RemoveFromListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: RemoveFromListener ID2 success again", notFound == false && notIn == false)
 	DoTestCheck("DoTestFriends: Empty listener list after clean-up", len(up.pl.Listeners) == 0)
@@ -702,7 +688,7 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 }
 
 func DoTestChunkCompare(ch1, ch2 *chunk) bool {
-	equal := ch1.checkSum == ch2.checkSum && ch1.coord.Equal(ch2.coord) && ch1.flag == ch2.flag && ch1.owner == ch2.owner && len(ch1.ch_comp) == len(ch2.ch_comp)
+	equal := ch1.checkSum == ch2.checkSum && ch1.Coord.Equal(ch2.Coord) && ch1.flag == ch2.flag && ch1.owner == ch2.owner && len(ch1.ch_comp) == len(ch2.ch_comp)
 	if !equal {
 		return false
 	}

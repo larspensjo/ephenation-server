@@ -126,7 +126,7 @@ func (itm *Helmet) Use(p interface{}) func() bool {
 		if up.pl.HelmetLvl+uint32(up.pl.HelmetType) < itm.Level+uint32(itm.Type) {
 			up.pl.HelmetType = itm.Type
 			up.pl.HelmetLvl = itm.Level
-			up.pl.inventory.Remove(itm.ID(), itm.Level)
+			up.pl.Inventory.Remove(itm.ID(), itm.Level)
 			replaced = true
 		}
 		up.Unlock()

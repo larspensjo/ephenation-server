@@ -54,7 +54,7 @@ func chunkFindRO(coord chunkdb.CC) *chunk {
 	var n int
 	for pc = world_cache[ind]; pc != nil; pc = pc.next {
 		n++ // Number of searches
-		if pc.coord.X == coord.X && pc.coord.Y == coord.Y && pc.coord.Z == coord.Z {
+		if pc.Coord.X == coord.X && pc.Coord.Y == coord.Y && pc.Coord.Z == coord.Z {
 			pc.touched = true
 			break
 		}
@@ -100,14 +100,14 @@ func ChunkFind_WLwWLc(coord chunkdb.CC) *chunk {
 }
 
 func AddChunkToHashTable(pc *chunk) {
-	ind := chunkFindHash(pc.coord)
+	ind := chunkFindHash(pc.Coord)
 	pc.next = world_cache[ind]
 	world_cache[ind] = pc // Insert the new pointer first
 	worldCacheNumChunks++
 }
 
 func RemoveChunkFromHashTable(pc *chunk) {
-	ind := chunkFindHash(pc.coord)
+	ind := chunkFindHash(pc.Coord)
 	for ppc := &world_cache[ind]; *ppc != nil; ppc = &(*ppc).next {
 		if *ppc == pc {
 			*ppc = pc.next

@@ -126,7 +126,7 @@ func (wp *Weapon) Use(p interface{}) func() bool {
 		if up.pl.WeaponLvl+uint32(up.pl.WeaponType) < wp.Level+uint32(wp.Type) {
 			up.pl.WeaponType = wp.Type
 			up.pl.WeaponLvl = wp.Level
-			up.pl.inventory.Remove(wp.ID(), wp.Level)
+			up.pl.Inventory.Remove(wp.ID(), wp.Level)
 			replaced = true
 		}
 		up.Unlock()

@@ -40,7 +40,7 @@ func (this *Potion) Use(p interface{}) func() bool {
 	if !ok || up == nil {
 		panic("Not a user pointer")
 	}
-	if up.pl.dead {
+	if up.pl.Dead {
 		return nil
 	}
 	var f func() bool
@@ -49,7 +49,7 @@ func (this *Potion) Use(p interface{}) func() bool {
 		f = func() (ret bool) {
 			up.Lock()
 			if up.Heal(0.3, 0) {
-				up.pl.inventory.Remove(ItemHealthPotionID, this.GetLevel())
+				up.pl.Inventory.Remove(ItemHealthPotionID, this.GetLevel())
 				ret = true
 			}
 			up.Unlock()
@@ -59,7 +59,7 @@ func (this *Potion) Use(p interface{}) func() bool {
 		f = func() (ret bool) {
 			up.Lock()
 			if up.Mana(0.3) {
-				up.pl.inventory.Remove(ItemManaPotionID, this.GetLevel())
+				up.pl.Inventory.Remove(ItemManaPotionID, this.GetLevel())
 				ret = true
 			}
 			up.Unlock()

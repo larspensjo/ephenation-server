@@ -90,8 +90,8 @@ func ManageOneClient_WLuBlWLqWLa(conn net.Conn, i int) {
 	// log.Print("RemoteAddr ", conn.RemoteAddr(), "\n")
 	SendProtocolVersion_Bl(conn)
 	ManageOneClient2_WLuWLqWLmBlWLcWLw(conn, i)
-	if !NameIsTestPlayer(allPlayers[i].pl.name) && allPlayers[i].pl.name != dummyLoginName {
-		lastUser = allPlayers[i].pl.name
+	if !NameIsTestPlayer(allPlayers[i].pl.Name) && allPlayers[i].pl.Name != dummyLoginName {
+		lastUser = allPlayers[i].pl.Name
 		timeOfLogout = time.Now()
 	}
 	CmdClose_BlWLqWLuWLa(i)
@@ -103,7 +103,7 @@ func ManageOneClient_WLuBlWLqWLa(conn net.Conn, i int) {
 func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 	buff := make([]byte, 50) // Command buffer, also used for blocking messages.
 	up := allPlayers[i]
-	up.pl.name = dummyLoginName // To have something to print
+	up.pl.Name = dummyLoginName // To have something to print
 	up.lic = nil                // Just a safety precaution
 	previous := time.Now()
 	longPrevious := previous
@@ -140,7 +140,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			// As the player isn't locked, the stats may be updated while this is done. Clear the flag
 			// first, to ensure other updates are not lost. The transient flags are cleared later, and so it may happen
 			// that a flag will be lost. But this is not vital information, so a loss can be accepted if it is unlikely.
-			// log.Printf("State %v, flags 0x%x, hp %v, exp %v, level %v, mana %v\n", up.connState, up.flags, up.pl.hitPoints, up.pl.exp, up.pl.level, up.pl.mana)
+			// log.Printf("State %v, flags 0x%x, hp %v, exp %v, level %v, mana %v\n", up.connState, up.flags, up.pl.HitPoints, up.pl.Exp, up.pl.Level, up.pl.Mana)
 			up.updatedStats = false
 			up.SendMsgUpdatedStats_Bl(buff)
 			up.flags &= ^UserFlagTransientMask // Clear all transient flags, now that the client has been informed.
@@ -174,7 +174,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 			if *verboseFlag > 1 {
 				// This is a normal case
-				log.Printf("Disconnect %v because of '%v'\n", up.pl.name, err)
+				log.Printf("Disconnect %v because of '%v'\n", up.pl.Name, err)
 			}
 			CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
 			return
@@ -226,7 +226,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 			if err != nil {
 				if *verboseFlag > 0 {
-					log.Printf("Disconnect %v because of '%v'.\n", up.pl.name, err)
+					log.Printf("Disconnect %v because of '%v'.\n", up.pl.Name, err)
 					if e2 != nil {
 						log.Printf("Temporary: %v, Timeout: %v\n", e2.Temporary(), e2.Timeout())
 					}
@@ -258,7 +258,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 			up.CmdLogin_WLwWLuWLqBlWLc(string(buff[3:length]))
 			if *verboseFlag > 1 {
-				defer log.Printf("Leaving player '%v'\n", up.pl.name)
+				defer log.Printf("Leaving player '%v'\n", up.pl.Name)
 			}
 		case CMD_RESP_PASSWORD:
 			// log.Printf("Logincmd %v\n", buff[3 : length])
@@ -268,7 +268,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				buff[2] = CMD_LOGINFAILED
 				allPlayers[i].writeBlocking_Bl(buff[0:3]) // Tell client login failed.
 				if *verboseFlag > 0 {
-					log.Printf("Disconnect %v\n", up.pl.name)
+					log.Printf("Disconnect %v\n", up.pl.Name)
 				}
 				return
 			}
@@ -282,7 +282,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 		case CMD_QUIT:
 			CmdSavePlayerNow_RluBl(i)
 			if *verboseFlag > 1 {
-				log.Printf("Disconnect %v\n", up.pl.name)
+				log.Printf("Disconnect %v\n", up.pl.Name)
 			}
 			return
 		case CMD_GET_COORDINATE:
@@ -390,7 +390,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			// The Use function will not really do anything, only return a function. That way, only a read lock is needed.
 			// The reason for this is that the Use function will do callbacks that will, in turn, lock what is needed. As this is
 			// not known now, except that we know the user has to be read locked.
-			f := up.pl.inventory.Use(code, lvl, up)
+			f := up.pl.Inventory.Use(code, lvl, up)
 			up.RUnlock()
 			if f != nil {
 				consumed := f() // This function will take care of locking, as needed, and remove object from inventory, if needed.
@@ -405,9 +405,9 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			// The Use function will not really do anything, only return a function. That way, only a read lock is needed.
 			// The reason for this is that the Use function will do callbacks that will, in turn, lock what is needed. As this is
 			// not known now, except that we know the user has to be read locked.
-			val := up.pl.inventory.Value(code, lvl, up.pl.level) * CnfgItemRewardNormalizer
+			val := up.pl.Inventory.Value(code, lvl, up.pl.Level) * CnfgItemRewardNormalizer
 			if val >= 0 {
-				up.pl.inventory.Remove(code, lvl)
+				up.pl.Inventory.Remove(code, lvl)
 				up.AddExperience(val)
 			}
 			up.Unlock()
@@ -419,13 +419,13 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			up, ok := allPlayerIdMap[uid]
 			allPlayersSem.RUnlock()
 			if ok {
-				l := len(up.pl.name)
+				l := len(up.pl.Name)
 				buff[0] = byte(8 + l)
 				buff[1] = 0
 				buff[2] = CMD_RESP_PLAYER_NAME
 				EncodeUint32(uid, buff[3:7])
-				buff[7] = up.pl.adminLevel
-				copy(buff[8:], up.pl.name)
+				buff[7] = up.pl.AdminLevel
+				copy(buff[8:], up.pl.Name)
 				allPlayers[i].writeBlocking_Bl(buff[0 : 8+l])
 				allPlayers[i].ReportEquipment_Bl(up)
 			}
@@ -481,15 +481,15 @@ func (up *user) ManageAttackPeriod_WLuBl(delta time.Duration) {
 	mp := up.aggro
 	dist2 := float64(0) // Distance to monster, squared
 	if mp != nil {
-		dx := up.pl.coord.X - mp.coord.X
-		dy := up.pl.coord.Y - mp.coord.Y
-		dz := up.pl.coord.Z - mp.coord.Z
+		dx := up.pl.Coord.X - mp.Coord.X
+		dy := up.pl.Coord.Y - mp.Coord.Y
+		dz := up.pl.Coord.Z - mp.Coord.Z
 		dist2 = dx*dx + dy*dy + dz*dz
 		if dist2 > CnfgMonsterAggroDistance*CnfgMonsterAggroDistance {
 			mp = nil
 			up.Printf_Bl("Too far away for combat")
 		}
-		if mp == nil || mp.invalid || mp.HitPoints <= 0 || mp.dead || up.pl.dead {
+		if mp == nil || mp.invalid || mp.HitPoints <= 0 || mp.dead || up.pl.Dead {
 			up.Lock()
 			up.aggro = nil
 			up.flags &= ^UserFlagInFight
@@ -501,7 +501,7 @@ func (up *user) ManageAttackPeriod_WLuBl(delta time.Duration) {
 				mp.Hit_WLuBl(up, 1)
 			}
 		}
-	} else if !up.pl.dead && up.aggro == nil && (up.pl.hitPoints != 1 || up.pl.mana != 1) {
+	} else if !up.pl.Dead && up.aggro == nil && (up.pl.HitPoints != 1 || up.pl.Mana != 1) {
 		// Restore health and mana for player if not being dead and not attacking
 		up.HealthAndMana_WLu(delta)
 	}
@@ -510,22 +510,22 @@ func (up *user) ManageAttackPeriod_WLuBl(delta time.Duration) {
 // Heal the player and restore mana, depending on how much time has passed.
 func (up *user) HealthAndMana_WLu(delta time.Duration) {
 	up.Lock()
-	newHP := up.pl.hitPoints + float32(delta)/CnfgHealingPeriod
+	newHP := up.pl.HitPoints + float32(delta)/CnfgHealingPeriod
 	if newHP > 1 {
 		newHP = 1
 	}
-	if newHP > up.pl.hitPoints {
-		up.pl.hitPoints = newHP
+	if newHP > up.pl.HitPoints {
+		up.pl.HitPoints = newHP
 		up.updatedStats = true
 	}
 	up.Unlock()
 	// The mana is only controlled by the ManageOneClient2() function (which called this function), and so there is no need for a lock.
-	newMana := up.pl.mana + float32(delta)/CnfgHealingPeriod
+	newMana := up.pl.Mana + float32(delta)/CnfgHealingPeriod
 	if newMana > 1 {
 		newMana = 1
 	}
-	if newMana > up.pl.mana {
-		up.pl.mana = newMana
+	if newMana > up.pl.Mana {
+		up.pl.Mana = newMana
 		up.updatedStats = true
 	}
 }

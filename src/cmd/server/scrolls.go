@@ -40,7 +40,7 @@ func (itm *Scroll) Use(p interface{}) func() bool {
 	if !ok || up == nil {
 		panic("Not a user pointer")
 	}
-	if up.pl.dead {
+	if up.pl.Dead {
 		return nil
 	}
 	var f func() bool
@@ -48,8 +48,8 @@ func (itm *Scroll) Use(p interface{}) func() bool {
 	case ScrollResurrectionPoint:
 		f = func() (ret bool) {
 			up.Lock()
-			up.pl.reviveSP = up.pl.coord
-			up.pl.inventory.Remove(itm.ID(), itm.GetLevel())
+			up.pl.ReviveSP = up.pl.Coord
+			up.pl.Inventory.Remove(itm.ID(), itm.GetLevel())
 			up.Unlock()
 			return true
 		}

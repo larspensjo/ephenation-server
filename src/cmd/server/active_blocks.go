@@ -42,7 +42,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 	ignoreTrigger := false
 	// There is a theoretical chance that the following test can fail because of not using a lock.
 	// If so, the worst concequence would be that the trap would fail to trig.
-	if up.pl.dead {
+	if up.pl.Dead {
 		ignoreTrigger = true
 	}
 	// A filter to prevent the same trigger from activating again
@@ -67,7 +67,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 
 	// Normally, the player coordinate can not change from another process. If it would happen,
 	// in worst case we would nto find the trap.
-	coord := up.pl.coord
+	coord := up.pl.Coord
 	cc := coord.GetChunkCoord()
 	cp := ChunkFindCached_WLwWLc(cc)
 	x_off := uint8(int64(math.Floor(coord.X)) - int64(cc.X)*CHUNK_SIZE)
@@ -85,7 +85,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 	list := make([]localActivatorList, 0, 5) // Allocate a number of pointers, to avoid unneccesary reallocation to grow the vector.
 	now := time.Now()
 	cp.RLock()
-	ch_coord := cp.coord
+	ch_coord := cp.Coord
 	owner := cp.owner
 	for i, trig := range cp.blTriggers {
 		if trig.x != x_off || trig.y != y_off || trig.z != z_off {
@@ -163,7 +163,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 func ActivatorIterator(f func(*user), list []quadtree.Object) (found int) {
 	for _, recepient := range list {
 		// For each object in the list, identify those that are players.
-		if other, ok := recepient.(*user); ok && !other.pl.dead {
+		if other, ok := recepient.(*user); ok && !other.pl.Dead {
 			f(other)
 			found++
 		}
@@ -187,19 +187,19 @@ func (up *user) ActivatorMessage_WLuWLqWLmWLc(line string, ac *user_coord, recep
 		switch {
 		case strings.HasPrefix(split[0], "/level>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.level <= uint32(lim)
+			terminate = err == nil && up.pl.Level <= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/level<"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.level >= uint32(lim)
+			terminate = err == nil && up.pl.Level >= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/admin>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.adminLevel <= uint8(lim)
+			terminate = err == nil && up.pl.AdminLevel <= uint8(lim)
 			if terminate {
 				return
 			}
@@ -391,17 +391,17 @@ func ActivatorMessageInventoryAdd(recepients []quadtree.Object, modifier string,
 	}
 	cost := math.Pow(2, quality-1) // Will give a value of 0,5, 1, 2, 4, or 8
 	f := func(up *user) {
-		cp := ChunkFindCached_WLwWLc(up.pl.coord.GetChunkCoord())
+		cp := ChunkFindCached_WLwWLc(up.pl.Coord.GetChunkCoord())
 		owner := cp.owner
 		costCovered := true
-		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.uid != OWNER_TEST {
+		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.pl.Id != OWNER_TEST {
 			// This time, also include the case where owner of chunk is up.
 			costCovered = score.Pay(owner, cost)
 		}
 		if costCovered {
 			obj := maker(level)
 			AddOneObjectToUser_WLuBl(up, obj)
-			// up.Printf("Added object %#v to %v", obj, up.pl.name)
+			// up.Printf("Added object %#v to %v", obj, up.pl.Name)
 		}
 	}
 	numRecepients := ActivatorIterator(f, recepients)
@@ -443,7 +443,7 @@ func (ch *chunk) ComputeLinks() {
 	prevTextMsgActivator := ch.triggerMsgs
 	// Make a new list, initialize length to the same as the old. This is the usual case, but need not be exactly correct.
 	ch.triggerMsgs = make([]textMsgActivator, 0, len(prevTextMsgActivator))
-	// fmt.Printf("ComputeLinks chunk %v\n", ch.coord)
+	// fmt.Printf("ComputeLinks chunk %v\n", ch.Coord)
 	ch.blTriggers = nil // Initialize to empty list
 	for x := 0; x < CHUNK_SIZE; x++ {
 		for y := 0; y < CHUNK_SIZE; y++ {
@@ -504,7 +504,7 @@ func (ch *chunk) FollowLinkNeighbors_WLwWLc(x, y, z int, tested map[uint32]bool)
 
 // Check the argument, as a neighbor chunk may be needed.
 func (ch *chunk) FollowLink_WLwWLc(x, y, z int, tested map[uint32]bool) {
-	// fmt.Printf("FollowLink new %v, orig %v\n", ch.coord, orig.coord)
+	// fmt.Printf("FollowLink new %v, orig %v\n", ch.Coord, orig.Coord)
 	switch {
 	case x < 0:
 		fallthrough
@@ -529,7 +529,7 @@ func (ch *chunk) FollowLink_WLwWLc(x, y, z int, tested map[uint32]bool) {
 	bl := ch.rc[x][y][z]
 	if bl == BT_Spawn || bl == BT_Text {
 		// Found an activator.
-		// fmt.Printf("FollowLink: Activator %d at %d,%d,%d (chunk %v,)\n", bl, x, y, z, ch.coord)
+		// fmt.Printf("FollowLink: Activator %d at %d,%d,%d (chunk %v,)\n", bl, x, y, z, ch.Coord)
 		var bt BlockTrigger
 		bt.x2, bt.y2, bt.z2 = uint8(x), uint8(y), uint8(z)
 		bt.x = CHUNK_SIZE // Illegal value to indicate that the trigger coordinate shall be updated later.

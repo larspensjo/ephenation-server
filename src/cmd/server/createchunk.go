@@ -43,7 +43,7 @@ func dBCreateChunk(c chunkdb.CC) *chunk {
 	start := time.Now()
 	ch := new(chunk)
 	ch.rc = new(raw_chunk)
-	ch.coord = c
+	ch.Coord = c
 	z1 := int(c.Z * CHUNK_SIZE)
 
 	for x := int32(0); x < CHUNK_SIZE; x++ {

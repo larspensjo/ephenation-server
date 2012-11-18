@@ -44,7 +44,6 @@ type License struct {
 	Password string // The password of the license
 	License  string // The license for this person
 	LastSeen string // Date when this player was last logged on
-	avatar   string // Avatar name for this license.
 }
 
 // Load a license. Return nil if error.
@@ -56,14 +55,7 @@ func Load_Bl(mail string) *License {
 	err := db.C("users").FindId(mail).One(&license)
 
 	if err != nil {
-		log.Println(err)
-		return nil
-	}
-
-	// Read avatar name
-	err = db.C("avatars").Find(bson.M{"owner": mail}).One(bson.M{"name": &license.avatar})
-	if err != nil {
-		log.Println(err)
+		log.Println("User", mail, err)
 		return nil
 	}
 

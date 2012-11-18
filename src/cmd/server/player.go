@@ -19,15 +19,14 @@ package main
 
 import (
 	"chunkdb"
-	"encoding/json"
 	"ephenationdb"
 	"fmt"
 	"inventory"
 	"keys"
+	"labix.org/v2/mgo/bson"
 	"log"
 	"math"
 	"math/rand"
-	"score"
 	"strconv"
 	"strings"
 	"time"
@@ -37,154 +36,84 @@ import (
 // All functions in this file are only called from the client process.
 // TODO: Horisontal direction angle should be 0 radians to the east, as it is for monsters.
 type player struct {
+	Id         uint32       `bson:"_id"`
 	ZSpeed     float64      // Upward movement speed
-	logonTimer time.Time    // Store time to count user online time
-	name       string       // The name of the player
-	coord      user_coord   // The current player feet coordinates
-	adminLevel uint8        // A constant from Admin*, used to control the rights.
-	flying     bool         // True if player is moving without any gravity.
-	climbing   bool         // True if player is on a ladder. It is similar to the flyng mode.
-	dead       bool         // True if the player is dead.
+	LogonTimer time.Time    // Store time to count user online time
+	Name       string       // The name of the avatar
+	Coord      user_coord   // The current player feet coordinates
+	AdminLevel uint8        // A constant from Admin*, used to control the rights.
+	Flying     bool         // True if player is moving without any gravity.
+	Climbing   bool         // True if player is on a ladder. It is similar to the flyng mode.
+	Dead       bool         // True if the player is dead.
 	WeaponType uint8        // 0 is no weapon, higher is better.
 	ArmorType  uint8        // 0 is no armor, higher is better.
 	HelmetType uint8        // 0 is no helmet, higher is better.
 	WeaponLvl  uint32       // The level where the weapon was found.
 	ArmorLvl   uint32       // The level where the armor was found.
 	HelmetLvl  uint32       // The level where the helmet was found.
-	dirHor     float32      // The horistonal direction the player is looking at. 0 radians means looking to the north. This is controlled by the client.
-	dirVert    float32      // The vertical direction the player is looking at. 0 radians means horisontal This is controlled by the client.
-	level      uint32       // The player level
-	exp        float32      // Experience points, from 0-1. At 1.0, the next level is reached
-	hitPoints  float32      // Player hit points, 0-1. 1 is full hp, 0 is dead.
-	mana       float32      // Player mana, 0-1.
-	numKill    uint32       // Total number of monster kills. Just for fun.
-	homeSP     user_coord   // Your home spawn, if any.
-	reviveSP   user_coord   // This is where you come when you die.
-	targetCoor user_coord   // Used for targeting mechanisms
-	territory  []chunkdb.CC // The chunks allocated for this player
+	DirHor     float32      // The horistonal direction the player is looking at. 0 radians means looking to the north. This is controlled by the client.
+	DirVert    float32      // The vertical direction the player is looking at. 0 radians means horisontal This is controlled by the client.
+	Level      uint32       // The player level
+	Exp        float32      // Experience points, from 0-1. At 1.0, the next level is reached
+	HitPoints  float32      // Player hit points, 0-1. 1 is full hp, 0 is dead.
+	Mana       float32      // Player mana, 0-1.
+	NumKill    uint32       // Total number of monster kills. Just for fun.
+	HomeSP     user_coord   // Your home spawn, if any.
+	ReviveSP   user_coord   // This is where you come when you die.
+	TargetCoor user_coord   // Used for targeting mechanisms
+	territory  []chunkdb.CC // The chunks allocated for this player. TODO: Not saved with player, should be in 'user' instead.
 	Listeners  []uint32     // The list of people listening on this player logging in and out.
-	maxchunks  int          // Max number of chunks this player can own.
-	blockAdd   uint32       // Blocks added by this player
-	blockRem   uint32       // Blocks removed by this player
-	timeOnline uint32       // Current time online
-	head       uint16       // Head type
-	body       uint16       // Body type
+	Maxchunks  int          // Max number of chunks this player can own.
+	BlockAdd   uint32       // Blocks added by this player
+	BlockRem   uint32       // Blocks removed by this player
+	TimeOnline uint32       // Current time online
+	Head       uint16       // Head type
+	Body       uint16       // Body type
 	Keys       keys.KeyRing // The list of keys that the player has
-	inventory  inventory.Inventory
+	Lastseen   string       // String format date
+	Owner      string       // The owner, which is an email
+	Inventory  inventory.Inventory
 }
 
 func (this *player) String() string {
-	return fmt.Sprintf("[%s %v]", this.name, this.coord)
+	return fmt.Sprintf("[%s %v]", this.Name, this.Coord)
 }
 
 // Return true if ok, and the uid of the player.
 // TODO: Improve error handlng
-func (pl *player) Load_WLwBlWLc(name string) (uint32, bool) {
+func (pl *player) Load_WLwBlWLc(owner string) bool {
 	// Connect to database
 	db := ephenationdb.New()
-	if db == nil {
-		return 0, false
-	}
-	defer ephenationdb.Release(db)
-
-	// Build a query for the avatar name sent as an argument
-	// TODO: Assert that the avatar name is unique and on this server for the current user?
-	query := "SELECT jsonstring,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ FROM avatars WHERE name='" + name + "'"
-	stmt, err := db.Prepare(query)
+	err := db.C("avatars").Find(bson.M{"owner": owner}).One(pl)
 	if err != nil {
-		log.Println(err)
-		return 0, false
+		log.Println("Avatar for", owner, err)
+		return false
 	}
-
-	// Execute statement
-	err = stmt.Execute()
-	if err != nil {
-		log.Println(err)
-		return 0, false
-	}
-
-	// Some helper variables
-	var packedline string
-	var uid uint32
-	var packedInv []byte
-	var terrScore, terrScoreBalance float64
-	var terrScoreTimestamp uint32
-	// Booleans doesn't work
-	var flying, climbing, dead int
-	stmt.BindResult(&packedline, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
-		&pl.exp, &pl.hitPoints, &pl.mana, &pl.numKill, &pl.homeSP.X, &pl.homeSP.Y, &pl.homeSP.Z, &pl.reviveSP.X, &pl.reviveSP.Y, &pl.reviveSP.Z, &pl.maxchunks,
-		&pl.blockAdd, &pl.blockRem, &pl.timeOnline, &pl.head, &pl.body, &packedInv, &terrScore, &terrScoreBalance, &terrScoreTimestamp,
-		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z)
-
-	for {
-		eof, err := stmt.Fetch()
-		if err != nil {
-			log.Println(err)
-			return 0, false
-		}
-		if eof {
-			break
-		}
-	}
-
-	// log.Println(pl.targetCoor)
 
 	// Some post processing
-	pl.name = name
-	if flying == 1 {
-		pl.flying = true
-	}
-	if climbing == 1 {
-		pl.climbing = true
-	}
-	if dead == 1 {
-		pl.dead = true
-	}
 
-	if pl.maxchunks == -1 {
+	if pl.Maxchunks == 0 {
 		// This parameter was not initialized.
-		pl.maxchunks = CnfgMaxOwnChunk
+		pl.Maxchunks = CnfgMaxOwnChunk
 	}
 
-	pl.logonTimer = time.Now()
+	pl.LogonTimer = time.Now()
 
-	if err = json.Unmarshal([]uint8(packedline), pl); err != nil {
-		log.Printf("Unmarshal player %s: %v (%v)\n", name, err, packedline)
-		// TODO: This covers errors when updating the jsonstring, should be handled in a more approperiate way
-		//return 0, false
-	}
-
-	// If there was data in the inventory "blob", unpack it.
-	if len(packedInv) > 0 {
-		err = pl.inventory.Unpack([]byte(packedInv))
-		if err != nil {
-			log.Println("Failed to unpack", err, packedInv)
-		}
-		// Save what can be saved, and remove unknown objects.
-		pl.inventory.CleanUp()
-	}
-	if *verboseFlag > 1 {
-		log.Println("Inventory unpacked", pl.inventory)
-	}
-
-	//fmt.Printf("Coord: (%v,%v,%v)\n", pl.coord.X, pl.coord.Y, pl.coord.Z )
-
-	if pl.reviveSP.X == 0 && pl.reviveSP.Y == 0 && pl.reviveSP.Z == 0 {
+	if pl.ReviveSP.X == 0 && pl.ReviveSP.Y == 0 && pl.ReviveSP.Z == 0 {
 		// Check if there is any spawn point defined.
-		pl.reviveSP = pl.coord
-		pl.homeSP = pl.coord
+		pl.ReviveSP = pl.Coord
+		pl.HomeSP = pl.Coord
 	}
 
 	// Load the allocated territories. This is loaded every time a player logs in, but not at logout or player save.
 	// It will however be updated immediately when the player changes his allocation.
-	terr, ok := chunkdb.ReadAvatar_Bl(uint32(uid))
+	terr, ok := chunkdb.ReadAvatar_Bl(pl.Id)
 	if !ok {
-		return 0, false
+		return false
 	}
 	pl.territory = terr
-	score.Initialize(uid, terrScore, terrScoreBalance, terrScoreTimestamp, name, len(terr))
 	// fmt.Printf("User: %#v\n", pl)
-	return uint32(uid), true
+	return true
 }
 
 func Q(b bool) int {
@@ -194,63 +123,25 @@ func Q(b bool) int {
 	return 0
 }
 
-// TODO: Improve error handling
 // Return true if the save succeeded.
 func (pl *player) Save_Bl() bool {
 	// Connect to database
 	start := time.Now()
-	db := ephenationdb.New()
-	if db == nil {
-		return false
-	}
-
-	// Do some preprocessing
-	b, err := json.Marshal(pl)
-	if err != nil {
-		log.Printf("Marshal %s returned %v\n", pl.name, err)
-	}
-
-	inventory, err := pl.inventory.Serialize()
-
 	// Update last seen online
-	now := time.Now()
-	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
-
+	pl.Lastseen = fmt.Sprintf("%4v-%02v-%02v", start.Year(), int(start.Month()), start.Day())
 	// Update total time online, in seconds
-	TempTimer := time.Now()
-	pl.timeOnline += uint32(TempTimer.Sub(pl.logonTimer) / time.Second)
-	//fmt.Printf("User has been online %v seconds\n", TempTimer - pl.logonTimer)
-	pl.logonTimer = TempTimer // Use the stored value to avoid mismatch
+	pl.LogonTimer = start // Use the stored value to avoid mismatch
+	pl.TimeOnline += uint32(start.Sub(pl.LogonTimer) / time.Second)
+	db := ephenationdb.New()
+	_, err := db.C("avatars").UpsertId(pl.Id, pl)
 
-	// Write data on alternative format
-	// This section makes the following assumptions:
-	// - Avatar name cannot be changed from the server
-	// - Avatar looks (head/body) cannot be changed from the server TODO: THIS WILL EVENTUALLY NOT BE TRUE!
-	// Booleans doesn't work, transform them to numbers
-	query := "UPDATE avatars SET jsonstring=?,PositionX=?,PositionY=?,PositionZ=?,isFlying=?,isClimbing=?,isDead=?,DirHor=?,DirVert=?,AdminLevel=?" +
-		",Level=?,Experience=?,HitPoints=?,Mana=?,Kills=?,HomeX=?,HomeY=?,HomeZ=?,ReviveX=?,ReviveY=?,ReviveZ=?" +
-		",maxchunks=?,BlocksAdded=?,BlocksRemoved=?,TimeOnline=?,HeadType=?,BodyType=?,lastseen=?,inventory=?,TargetX=?,TargetY=?,TargetZ=?" +
-		" WHERE name='" + pl.name + "'"
-
-	stmt, err := db.Prepare(query)
 	if err != nil {
-		log.Println(err)
+		log.Println("Save", pl.Name, err)
 		return false
 	}
 
-	stmt.BindParams(b, pl.coord.X, pl.coord.Y, pl.coord.Z, Q(pl.flying), Q(pl.climbing), Q(pl.dead), pl.dirHor, pl.dirVert, pl.adminLevel, pl.level,
-		pl.exp, pl.hitPoints, pl.mana, pl.numKill, pl.homeSP.X, pl.homeSP.Y, pl.homeSP.Z, pl.reviveSP.X, pl.reviveSP.Y, pl.reviveSP.Z, pl.maxchunks,
-		pl.blockAdd, pl.blockRem, pl.timeOnline, pl.head, pl.body, nowstring, inventory, pl.targetCoor.X, pl.targetCoor.Y, pl.targetCoor.Z)
-
-	err = stmt.Execute()
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-
-	ephenationdb.Release(db)
 	if *verboseFlag > 1 {
-		log.Printf("up.Save_Bl saved %v\n", pl.name)
+		log.Printf("up.Save_Bl saved %v\n", pl.Name)
 	}
 	elapsed := time.Now().Sub(start)
 	if *verboseFlag > 0 {
@@ -261,11 +152,11 @@ func (pl *player) Save_Bl() bool {
 
 // TODO: It looks like this function is only used by test players!
 // Return the uid of the player.
-func (pl *player) New_WLwWLc(name string) (uid uint32) {
+func (pl *player) New_WLwWLc(name string) {
 	// All players get a new struct, so there is no need to initialize 0 items.
-	pl.name = name
-	pl.hitPoints = 1
-	pl.mana = 1
+	pl.Name = name
+	pl.HitPoints = 1
+	pl.Mana = 1
 	// Find ground for the player. Start from top of world and go down one block at a time
 	// TODO: the dependencies on chunks must not be done in this process.
 	// Players with the names "test" and a number are reserved names for testing. The number is
@@ -280,7 +171,7 @@ func (pl *player) New_WLwWLc(name string) (uid uint32) {
 		a, b := math.Sincos(rand.Float64() * math.Pi * 2)
 		x = b * radie
 		y = a * radie
-		uid = OWNER_TEST - uint32(num)
+		pl.Id = OWNER_TEST - uint32(num)
 		// fmt.Printf("Test prefix, substr: %v, x,y : (%d,%d)\n", name[len(TestPlayerNamePrefix):], x, y)
 	} else {
 		log.Println("A player that was not a test player")
@@ -295,9 +186,9 @@ func (pl *player) New_WLwWLc(name string) (uid uint32) {
 	}
 	coord.Z += 1
 
-	pl.coord = coord
-	pl.reviveSP = coord
-	// log.Printf("player.New %s at coord %v\n", pl.name, pl.coord)
+	pl.Coord = coord
+	pl.ReviveSP = coord
+	// log.Printf("player.New %s at coord %v\n", pl.Name, pl.Coord)
 
 	return
 }

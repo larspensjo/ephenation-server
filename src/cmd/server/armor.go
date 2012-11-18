@@ -126,7 +126,7 @@ func (arm *Armor) Use(p interface{}) func() bool {
 		if up.pl.ArmorLvl+uint32(up.pl.ArmorType) < arm.Level+uint32(arm.Type) {
 			up.pl.ArmorType = arm.Type
 			up.pl.ArmorLvl = arm.Level
-			up.pl.inventory.Remove(arm.ID(), arm.Level)
+			up.pl.Inventory.Remove(arm.ID(), arm.Level)
 			replaced = true
 		}
 		up.Unlock()
