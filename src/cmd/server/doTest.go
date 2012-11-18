@@ -241,9 +241,7 @@ func DoTestLicense_Bl() {
 		name  = "nm"
 		pass  = "abcdefABCDEF"
 	)
-	lic := license.Make(email)
-	lic.License = license.GenerateKey()
-	lic.NewPassword(pass)
+	lic := license.Make(email, pass)
 	if *verboseFlag > 0 {
 		fmt.Printf("DoTestLicense load lic1 %#v\n", lic)
 	}
@@ -593,10 +591,10 @@ func DoTestChunkdb_WLwBlWLc() {
 	DoTestCheck("DoTestChunkdb: second pl.Load() success", ok)
 	terr = pl.territory
 	DoTestCheck("DoTestChunkdb: Territory list now exists", len(terr) == 3)
-	// fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
+	fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
 	// The returned list is in the opposite order. It is probably incorrect to assume that.
 	// TODO: This test usually fail, and then succeed next time!
-	DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk3) && terr[1].Equal(chunk2) && terr[2].Equal(chunk1))
+	DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk1) && terr[1].Equal(chunk2) && terr[2].Equal(chunk3))
 
 	// Clean up and clear the territory list
 	ok = chunkdb.SaveAvatar_Bl(pl.Id, nil)

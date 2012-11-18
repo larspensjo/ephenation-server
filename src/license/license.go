@@ -95,7 +95,7 @@ func (lp *License) Save_Bl() bool {
 	c := db.C("users")
 	_, err := c.UpsertId(lp.Mail, lp)
 	if err != nil {
-		log.Println(err)
+		log.Println("UsertId failed", lp, ":", err)
 		return false
 	}
 
@@ -149,6 +149,9 @@ func GenerateKey() string {
 	return string(str[:])
 }
 
-func Make(mail string) *License {
-	return &License{Mail: mail}
+// Use a mail and a password, and create a license
+func Make(mail, password string) *License {
+	lic := &License{Mail: mail, License: GenerateKey()}
+	lic.NewPassword(password)
+	return lic
 }

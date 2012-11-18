@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"github.com/robfig/goconfig/config"
 	"io/ioutil"
+	"labix.org/v2/mgo/bson"
+	"license"
 	"log"
 	"math/rand"
 	"os"
@@ -49,6 +51,7 @@ var (
 	logOnStdout         = flag.Bool("s", false, "Send log file to standard otput")
 	inhibitCreateChunks = flag.Bool("nocreate", false, "Only load modified chunks, and save no changes")
 	configFileName      = flag.String("configfile", "config.ini", "General configuration file")
+	createuser          = flag.String("createuser", "", "Create user from argument 'email,password,avatar'")
 
 	trafficStatistics = traffic.New()
 	superChunkManager = superchunk.New(CnfgSuperChunkFolder)
@@ -90,6 +93,12 @@ func main() {
 	if encryptionSalt, err = cnfg.String("login", "salt"); err != nil {
 		encryptionSalt = "" // Effectively no salt
 	}
+
+	if *createuser != "" {
+		CreateUser(*createuser)
+		return
+	}
+
 	if *convertChunkFiles {
 		ConvertFiles()
 		return
@@ -181,4 +190,43 @@ func ConvertFiles() {
 		}
 	}
 	fmt.Printf("%d Modified, %d non modified\n", mod, unmod)
+}
+
+func CreateUser(str string) {
+	args := strings.Split(str, ",")
+	if len(args) != 3 {
+		fmt.Println("Usage: server -createuser=email,password,avatar")
+		return
+	}
+	var pl player
+	pl.New_WLwWLc(args[2])
+	pl.Owner = args[0]
+	// up.pl.Id = 
+	lic := license.Make(args[0], args[1])
+	c := ephenationdb.New().C("counters")
+	err := c.UpdateId("avatarId", bson.M{"$inc": bson.M{"c": 1}})
+	if err != nil {
+		fmt.Println("Failed to update unique counter 'avatarId' in collection 'counter'", err)
+		return
+	}
+	var id struct {
+		C uint32
+	}
+	err = c.FindId("avatarId").One(&id)
+	if err != nil {
+		fmt.Println("counters.avatarId", err)
+		return
+	}
+	pl.Id = id.C
+	if lic.Save_Bl() {
+		fmt.Println("Created Licence", lic.License, "for", lic.Mail)
+	} else {
+		fmt.Println("Failed to create license for", lic.Mail)
+		return
+	}
+	if pl.Save_Bl() {
+		fmt.Println("Created avatar number", pl.Id, ":", pl.Name)
+	} else {
+		fmt.Println("Failed to create avatar", pl.Name)
+	}
 }

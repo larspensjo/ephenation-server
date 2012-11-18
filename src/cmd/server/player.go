@@ -150,8 +150,6 @@ func (pl *player) Save_Bl() bool {
 	return true
 }
 
-// TODO: It looks like this function is only used by test players!
-// Return the uid of the player.
 func (pl *player) New_WLwWLc(name string) {
 	// All players get a new struct, so there is no need to initialize 0 items.
 	pl.Name = name
@@ -173,8 +171,6 @@ func (pl *player) New_WLwWLc(name string) {
 		y = a * radie
 		pl.Id = OWNER_TEST - uint32(num)
 		// fmt.Printf("Test prefix, substr: %v, x,y : (%d,%d)\n", name[len(TestPlayerNamePrefix):], x, y)
-	} else {
-		log.Println("A player that was not a test player")
 	}
 
 	coord := user_coord{x, y, FLOATING_ISLANDS_LIM - 1} // Try this

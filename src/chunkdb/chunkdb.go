@@ -18,7 +18,7 @@
 package chunkdb
 
 //
-// The purpose of this package is to manage access to the chunk list table ("chunkdata", in SQL).
+// The purpose of this package is to manage access to the chunk list table ("chunkdata").
 // This table contains information about what users own what chunks.
 //
 
@@ -54,6 +54,7 @@ var (
 
 // Take a chunk address, a chunk pointer and a callback function.
 // Retrieve the owner (avatar ID) of the chunk, and call the callback function
+// TODO: This isn't used any longer
 func Update(chunk CC, data interface{}, cb callbackFunc) {
 	// The following statement will send to 'ch' if possible, otherwise return and forget about it.
 	select {
@@ -114,14 +115,16 @@ func (this CC) UpdateLSB(x, y, z uint8) (ret CC) {
 
 // Find the avatar ID for a chunk. Return 0 when none found.
 func readChunk_Bl(chunk CC) uint32 {
-	var avatarID uint32
-	err := db.C("chunkdata").Find(bson.M{"x": chunk.X, "y": chunk.Y, "z": chunk.Z}).One(bson.M{"_id": &avatarID})
+	var Id struct {
+		AvatarID uint32
+	}
+	err := db.C("chunkdata").Find(bson.M{"x": chunk.X, "y": chunk.Y, "z": chunk.Z}).One(&Id)
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
 		return 0
 	}
-	return avatarID
+	return Id.AvatarID
 }
 
 // Find the list of all chunks allocated for an avatar
