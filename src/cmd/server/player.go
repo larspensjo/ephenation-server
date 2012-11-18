@@ -80,7 +80,6 @@ func (this *player) String() string {
 }
 
 // Return true if ok, and the uid of the player.
-// TODO: Improve error handlng
 func (pl *player) Load_WLwBlWLc(owner string) bool {
 	// Connect to database
 	db := ephenationdb.New()

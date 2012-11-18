@@ -192,17 +192,20 @@ func ConvertFiles() {
 	fmt.Printf("%d Modified, %d non modified\n", mod, unmod)
 }
 
+// Helper function to create a user (license) and an avatar for that user
 func CreateUser(str string) {
 	args := strings.Split(str, ",")
-	if len(args) != 3 {
-		fmt.Println("Usage: server -createuser=email,password,avatar")
+	if len(args) != 3 && len(args) != 4 {
+		fmt.Println("Usage: server -createuser=email,password,avatar[,licensekey]")
 		return
 	}
 	var pl player
 	pl.New_WLwWLc(args[2])
 	pl.Owner = args[0]
-	// up.pl.Id = 
 	lic := license.Make(args[0], args[1])
+	if len(args) == 4 {
+		lic.License = args[3] // Override
+	}
 	c := ephenationdb.New().C("counters")
 	err := c.UpdateId("avatarId", bson.M{"$inc": bson.M{"c": 1}})
 	if err != nil {

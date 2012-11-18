@@ -76,9 +76,9 @@ func (lp *License) SaveLogonTime_Bl() {
 	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
 	db := ephenationdb.New()
 	c := db.C("users")
-	err := c.Update(bson.M{"email": lp.Mail}, bson.M{"lastseen": nowstring})
+	err := c.UpdateId(lp.Mail, bson.M{"lastseen": nowstring})
 	if err != nil {
-		log.Println(err)
+		log.Println("Update", lp.Mail, ":")
 		return
 	}
 

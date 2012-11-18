@@ -159,7 +159,7 @@ func (up *user) CmdLogin_WLwWLuWLqBlWLc(email string) {
 				validTestUser = true // Allow testuser if no config file or no "Login" section
 			}
 		}
-	} else {
+	} else if strings.HasPrefix(email, CnfgTestPlayerNamePrefix) {
 		log.Println("Denied testuser from", remote)
 	}
 	if validTestUser {
