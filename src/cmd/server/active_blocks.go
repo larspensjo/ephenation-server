@@ -380,11 +380,7 @@ func ActivatorMessageAddKey_WLu(recepients []quadtree.Object, owner uint32, modi
 // Add an inventory item to all recepients. Return a new inhibit time, which depends on the reward
 // value and number of recipients.
 func ActivatorMessageInventoryAdd(recepients []quadtree.Object, modifier string, ac *user_coord) int {
-	maker, ok := objectTable[modifier]
-	if !ok {
-		return -1
-	}
-	level := MonsterDifficulty(ac) // We want an object of a level corresponding to the monsters at this place.
+	code := ObjectCode(modifier)
 	var quality float64
 	if len(modifier) == 4 && modifier[3] <= '9' && modifier[3] >= '1' {
 		quality = float64(modifier[3]) - '0' // A value 0 to 4.
@@ -399,8 +395,7 @@ func ActivatorMessageInventoryAdd(recepients []quadtree.Object, modifier string,
 			costCovered = score.Pay(owner, cost)
 		}
 		if costCovered {
-			obj := maker(level)
-			AddOneObjectToUser_WLuBl(up, obj)
+			AddOneObjectToUser_WLuBl(up, code)
 			// up.Printf("Added object %#v to %v", obj, up.pl.Name)
 		}
 	}

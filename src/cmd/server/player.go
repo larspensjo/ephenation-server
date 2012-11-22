@@ -21,7 +21,6 @@ import (
 	"chunkdb"
 	"ephenationdb"
 	"fmt"
-	"inventory"
 	"keys"
 	"labix.org/v2/mgo/bson"
 	"log"
@@ -36,43 +35,43 @@ import (
 // All functions in this file are only called from the client process.
 // TODO: Horisontal direction angle should be 0 radians to the east, as it is for monsters.
 type player struct {
-	Id         uint32       `bson:"_id"`
-	ZSpeed     float64      // Upward movement speed
-	LogonTimer time.Time    // Store time to count user online time
-	Name       string       // The name of the avatar
-	Coord      user_coord   // The current player feet coordinates
-	AdminLevel uint8        // A constant from Admin*, used to control the rights.
-	Flying     bool         // True if player is moving without any gravity.
-	Climbing   bool         // True if player is on a ladder. It is similar to the flyng mode.
-	Dead       bool         // True if the player is dead.
-	WeaponType uint8        // 0 is no weapon, higher is better.
-	ArmorType  uint8        // 0 is no armor, higher is better.
-	HelmetType uint8        // 0 is no helmet, higher is better.
-	WeaponLvl  uint32       // The level where the weapon was found.
-	ArmorLvl   uint32       // The level where the armor was found.
-	HelmetLvl  uint32       // The level where the helmet was found.
-	DirHor     float32      // The horistonal direction the player is looking at. 0 radians means looking to the north. This is controlled by the client.
-	DirVert    float32      // The vertical direction the player is looking at. 0 radians means horisontal This is controlled by the client.
-	Level      uint32       // The player level
-	Exp        float32      // Experience points, from 0-1. At 1.0, the next level is reached
-	HitPoints  float32      // Player hit points, 0-1. 1 is full hp, 0 is dead.
-	Mana       float32      // Player mana, 0-1.
-	NumKill    uint32       // Total number of monster kills. Just for fun.
-	HomeSP     user_coord   // Your home spawn, if any.
-	ReviveSP   user_coord   // This is where you come when you die.
-	TargetCoor user_coord   // Used for targeting mechanisms
-	territory  []chunkdb.CC // The chunks allocated for this player. TODO: Not saved with player, should be in 'user' instead.
-	Listeners  []uint32     // The list of people listening on this player logging in and out.
-	Maxchunks  int          // Max number of chunks this player can own.
-	BlockAdd   uint32       // Blocks added by this player
-	BlockRem   uint32       // Blocks removed by this player
-	TimeOnline uint32       // Current time online
-	Head       uint16       // Head type
-	Body       uint16       // Body type
-	Keys       keys.KeyRing // The list of keys that the player has
-	Lastseen   string       // String format date
-	Owner      string       // The owner, which is an email
-	Inventory  inventory.Inventory
+	Id          uint32       `bson:"_id"`
+	ZSpeed      float64      // Upward movement speed
+	LogonTimer  time.Time    // Store time to count user online time
+	Name        string       // The name of the avatar
+	Coord       user_coord   // The current player feet coordinates
+	AdminLevel  uint8        // A constant from Admin*, used to control the rights.
+	Flying      bool         // True if player is moving without any gravity.
+	Climbing    bool         // True if player is on a ladder. It is similar to the flyng mode.
+	Dead        bool         // True if the player is dead.
+	WeaponGrade uint8        // 0 is no weapon, higher is better.
+	ArmorGrade  uint8        // 0 is no armor, higher is better.
+	HelmetGrade uint8        // 0 is no helmet, higher is better.
+	WeaponLvl   uint32       // The level where the weapon was found.
+	ArmorLvl    uint32       // The level where the armor was found.
+	HelmetLvl   uint32       // The level where the helmet was found.
+	DirHor      float32      // The horistonal direction the player is looking at. 0 radians means looking to the north. This is controlled by the client.
+	DirVert     float32      // The vertical direction the player is looking at. 0 radians means horisontal This is controlled by the client.
+	Level       uint32       // The player level
+	Exp         float32      // Experience points, from 0-1. At 1.0, the next level is reached
+	HitPoints   float32      // Player hit points, 0-1. 1 is full hp, 0 is dead.
+	Mana        float32      // Player mana, 0-1.
+	NumKill     uint32       // Total number of monster kills. Just for fun.
+	HomeSP      user_coord   // Your home spawn, if any.
+	ReviveSP    user_coord   // This is where you come when you die.
+	TargetCoor  user_coord   // Used for targeting mechanisms
+	territory   []chunkdb.CC // The chunks allocated for this player. TODO: Not saved with player, should be in 'user' instead.
+	Listeners   []uint32     // The list of people listening on this player logging in and out.
+	Maxchunks   int          // Max number of chunks this player can own.
+	BlockAdd    uint32       // Blocks added by this player
+	BlockRem    uint32       // Blocks removed by this player
+	TimeOnline  uint32       // Current time online
+	Head        uint16       // Head type
+	Body        uint16       // Body type
+	Keys        keys.KeyRing // The list of keys that the player has
+	Lastseen    string       // String format date
+	Owner       string       // The owner, which is an email
+	Inventory   PlayerInv
 }
 
 func (this *player) String() string {

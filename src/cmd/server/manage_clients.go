@@ -1193,7 +1193,7 @@ func (up *user) FileMessage(fileName string) {
 func (up *user) ReportAllInventory_WluBl() {
 	up.RLock()
 	inv := up.pl.Inventory
-	l := inv.Len()
+	l := len(inv)
 	const N = 9
 	msgLen := l*N + 3
 	var b = make([]byte, msgLen)
@@ -1201,20 +1201,19 @@ func (up *user) ReportAllInventory_WluBl() {
 	b[1] = byte(msgLen >> 8)
 	b[2] = client_prot.CMD_UPD_INV
 	for i := 0; i < l; i++ {
-		obj := inv.Get(i)
-		str := []byte(obj.ID())
+		str := []byte(inv[i].Type)
 		if *verboseFlag > 1 {
-			log.Printf("%s %#v %s\n", obj.ID(), obj, str)
+			log.Printf("%#v\n", inv[i])
 		}
 		for j := 0; j < 4; j++ {
 			b[i*N+3+j] = str[j]
 		}
-		count := obj.GetCount()
+		count := inv[i].Count
 		if count > math.MaxUint8 {
 			count = math.MaxUint8 // This is what can be shown to the client
 		}
-		b[i*N+7] = count
-		EncodeUint32(obj.GetLevel(), b[i*N+8:i*N+12])
+		b[i*N+7] = byte(count)
+		EncodeUint32(inv[i].Level, b[i*N+8:i*N+12])
 	}
 	up.RUnlock()
 	if l > 0 {
@@ -1232,40 +1231,40 @@ func (up *user) ReportAllInventory_WluBl() {
 func (up *user) MonsterDropWLu(modifier float32) {
 	// log.Println("Modifier", modifier, "exp same level", combatExperienceSameLevel)
 	if rand.Float32()*modifier < 0.05 {
-		AddOneObjectToUser_WLuBl(up, MakeHealthPotion(0))
+		AddOneObjectToUser_WLuBl(up, ItemHealthPotionID)
 	}
 	if rand.Float32()*modifier < 0.05 {
-		AddOneObjectToUser_WLuBl(up, MakeManaPotion(0))
+		AddOneObjectToUser_WLuBl(up, ItemManaPotionID)
 	}
 
 	// Make weapons
 	prob := rand.Float32() * modifier
 	if prob < combatExperienceSameLevel/100 {
-		AddOneObjectToUser_WLuBl(up, MakeWeapon3(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemWeapon3ID)
 	} else if prob < combatExperienceSameLevel/10 {
-		AddOneObjectToUser_WLuBl(up, MakeWeapon2(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemWeapon2ID)
 	} else if prob < combatExperienceSameLevel {
-		AddOneObjectToUser_WLuBl(up, MakeWeapon1(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemWeapon1ID)
 	}
 
 	// Make armors
 	prob = rand.Float32() * modifier
 	if prob < combatExperienceSameLevel/100 {
-		AddOneObjectToUser_WLuBl(up, MakeArmor3(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemArmor3ID)
 	} else if prob < combatExperienceSameLevel/10 {
-		AddOneObjectToUser_WLuBl(up, MakeArmor2(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemArmor2ID)
 	} else if prob < combatExperienceSameLevel {
-		AddOneObjectToUser_WLuBl(up, MakeArmor1(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemArmor1ID)
 	}
 
 	// Make helmets
 	prob = rand.Float32() * modifier
 	if prob < combatExperienceSameLevel/100 {
-		AddOneObjectToUser_WLuBl(up, MakeHelmet3(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemHelmet3ID)
 	} else if prob < combatExperienceSameLevel/10 {
-		AddOneObjectToUser_WLuBl(up, MakeHelmet2(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemHelmet2ID)
 	} else if prob < combatExperienceSameLevel {
-		AddOneObjectToUser_WLuBl(up, MakeHelmet1(up.pl.Level))
+		AddOneObjectToUser_WLuBl(up, ItemHelmet1ID)
 	}
 }
 
@@ -1279,13 +1278,13 @@ func (target *user) ReportEquipment_Bl(up *user) {
 	b[2] = client_prot.CMD_EQUIPMENT
 	EncodeUint32(up.pl.Id, b[3:7])
 	b[7] = 0 // Slot, 0 means weapon
-	copy(b[8:12], ConvertWeaponTypeToID(up.pl.WeaponType))
+	copy(b[8:12], ConvertWeaponTypeToID(up.pl.WeaponGrade))
 	EncodeUint32(up.pl.WeaponLvl, b[12:16])
 	b[16] = 1 // Slot, 1 means armor
-	copy(b[17:21], ConvertArmorTypeToID(up.pl.ArmorType))
+	copy(b[17:21], ConvertArmorTypeToID(up.pl.ArmorGrade))
 	EncodeUint32(up.pl.ArmorLvl, b[21:25])
 	b[25] = 2 // Slot, 2 means helmet
-	copy(b[26:30], ConvertHelmetTypeToID(up.pl.HelmetType))
+	copy(b[26:30], ConvertHelmetTypeToID(up.pl.HelmetGrade))
 	EncodeUint32(up.pl.HelmetLvl, b[30:34])
 	if target == up {
 		target.writeBlocking_Bl(b[:])

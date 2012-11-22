@@ -77,8 +77,8 @@ func (up *user) Hit(monster uint32, level uint32, weaponDmg float32, weaponLvl u
 	dmg := weaponDmg *
 		PlayerLevelDiffMultiplier(up.pl.Level, level) *
 		WeaponLevelDiffMultiplier(level, weaponLvl, 1) /
-		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorType) /
-		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetType) /
+		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorGrade) /
+		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetGrade) /
 		MonsterVsPlayerFactor(level)
 	if dmg > 1 {
 		dmg = 1
@@ -114,7 +114,7 @@ func (up *user) Hit(monster uint32, level uint32, weaponDmg float32, weaponLvl u
 
 // The monster is hit by a player with the attributes as specified by the arguments
 func (mp *monster) Hit_WLuBl(up *user, weaponDmg float32) {
-	dmg := weaponDmg * PlayerLevelDiffMultiplier(mp.Level, up.pl.Level) * WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponType) * MonsterVsPlayerFactor(mp.Level)
+	dmg := weaponDmg * PlayerLevelDiffMultiplier(mp.Level, up.pl.Level) * WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponGrade) * MonsterVsPlayerFactor(mp.Level)
 	if dmg > 1 {
 		dmg = 1
 	}

@@ -130,29 +130,30 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 		fallthrough
 	case "/inventory":
 		if len(message) == 2 && up.pl.AdminLevel > 8 {
-			maker, ok := objectTable[message[1]]
+			code := ObjectCode(message[1])
+			_, ok := objectUseTable[code]
 			if message[1] == "clear" {
 				up.pl.Inventory.Clear() // There is no update message generated, so client won't know.
-				up.pl.WeaponType = 0
-				up.pl.ArmorType = 0
-				up.pl.HelmetType = 0
+				up.pl.WeaponGrade = 0
+				up.pl.ArmorGrade = 0
+				up.pl.HelmetGrade = 0
 				up.pl.WeaponLvl = 0
 				up.pl.ArmorLvl = 0
 				up.pl.HelmetLvl = 0
 			} else if !ok {
 				up.Printf_Bl("!Available objects:")
-				for key, maker := range objectTable {
-					up.Printf_Bl("!%v (%v)", maker(MonsterDifficulty(&up.pl.Coord)), key)
+				for key, _ := range objectUseTable {
+					up.Printf_Bl("!%v ", key)
 				}
 			} else {
-				AddOneObjectToUser_WLuBl(up, maker(MonsterDifficulty(&up.pl.Coord)))
+				AddOneObjectToUser_WLuBl(up, code)
 			}
 		} else {
 			up.pl.Inventory.Report(up)
 			up.Printf_Bl("!Equip modifiers: armor %.0f%%, helmet %.0f%%, weapon %.0f%%",
-				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorType)-1)*100,
-				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetType)-1)*100,
-				(WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponType)-1)*100)
+				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorGrade)-1)*100,
+				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetGrade)-1)*100,
+				(WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponGrade)-1)*100)
 		}
 	case "/GC":
 		var m runtime.MemStats

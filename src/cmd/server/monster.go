@@ -616,6 +616,7 @@ func UpdateAllMonsterPos_RLmWLwWLqWLuWLc(fullReport bool) {
 		// or something like that. It an also happen with temporary high loads.
 		if *verboseFlag > 1 {
 			// TODO: This seems to happen a lot on the server. A common time is 0.5s and more. Worst case was 104s.
+			// It seems some monsters are not pruned
 			log.Printf("Unexpected long monster movement deltaTime %.3fs\n", float64(deltaTime)/1e9)
 		}
 		deltaTime = ObjectsUpdatePeriod * 2

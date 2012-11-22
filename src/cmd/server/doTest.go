@@ -591,10 +591,13 @@ func DoTestChunkdb_WLwBlWLc() {
 	DoTestCheck("DoTestChunkdb: second pl.Load() success", ok)
 	terr = pl.territory
 	DoTestCheck("DoTestChunkdb: Territory list now exists", len(terr) == 3)
-	fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
-	// The returned list is in the opposite order. It is probably incorrect to assume that.
-	// TODO: This test usually fail, and then succeed next time!
-	DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk1) && terr[1].Equal(chunk2) && terr[2].Equal(chunk3))
+	if len(terr) == 3 {
+		// The returned list is in the opposite order. It is probably incorrect to assume that.
+		// TODO: This test usually fail, and then succeed next time!
+		DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk1) && terr[1].Equal(chunk2) && terr[2].Equal(chunk3))
+	} else {
+		fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
+	}
 
 	// Clean up and clear the territory list
 	ok = chunkdb.SaveAvatar_Bl(pl.Id, nil)

@@ -379,33 +379,22 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 		case CMD_DEBUG:
 			up.playerStringMessage_RLuWLwRLqBlWLaWLc(buff[3:length])
 		case CMD_USE_ITEM:
-			code := string(buff[3:7])
+			code := ObjectCode(buff[3:7])
 			lvl := uint32(0)
 			if length == 11 {
 				// This is the new proper way, where a level of the item is also provided,
 				// but some clients remains with the old format. TODO: Clean up.
 				lvl, _, _ = ParseUint32(buff[7:11])
 			}
-			up.RLock()
-			// The Use function will not really do anything, only return a function. That way, only a read lock is needed.
-			// The reason for this is that the Use function will do callbacks that will, in turn, lock what is needed. As this is
-			// not known now, except that we know the user has to be read locked.
-			f := up.pl.Inventory.Use(code, lvl, up)
-			up.RUnlock()
-			if f != nil {
-				consumed := f() // This function will take care of locking, as needed, and remove object from inventory, if needed.
-				if consumed {
-					ReportOneInventoryItem_WluBl(up, code, lvl)
-				}
-			}
+			up.pl.Inventory.Use_WluBl(up, code, lvl)
 		case CMD_DROP_ITEM:
-			code := string(buff[3:7])
+			code := ObjectCode(buff[3:7])
 			lvl, _, _ := ParseUint32(buff[7:11])
 			up.Lock()
 			// The Use function will not really do anything, only return a function. That way, only a read lock is needed.
 			// The reason for this is that the Use function will do callbacks that will, in turn, lock what is needed. As this is
 			// not known now, except that we know the user has to be read locked.
-			val := up.pl.Inventory.Value(code, lvl, up.pl.Level) * CnfgItemRewardNormalizer
+			val := ItemValueAsDrop(up.pl.Level, lvl, code) * CnfgItemRewardNormalizer
 			if val >= 0 {
 				up.pl.Inventory.Remove(code, lvl)
 				up.AddExperience(val)
