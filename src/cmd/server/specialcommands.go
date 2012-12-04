@@ -25,7 +25,6 @@ import (
 	"client_prot"
 	"fmt"
 	"github.com/larspensjo/Go-sync-evaluation/evalsync"
-	"license"
 	"log"
 	"os"
 	"runtime"
@@ -186,12 +185,6 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 			f.Close()
 			up.Printf_Bl("pprof written to %s\n", fn)
 		}
-	case "/loadlicense":
-		if (up.pl.AdminLevel >= 8 || *allowTestUser) && len(message) == 2 {
-			email := message[1]
-			lic := license.Load_Bl(email)
-			up.Printf_Bl("%v", lic)
-		}
 	case "/say":
 		if len(message) < 2 {
 			break
@@ -257,7 +250,7 @@ func (up *user) TerritoryCommand_WLwWLcBl(msg []string) {
 	}
 	switch msg[0] {
 	case "show":
-		up.Printf_Bl("Territory (%d of %d): %v", len(up.pl.territory), up.pl.Maxchunks, up.pl.territory)
+		up.Printf_Bl("Territory (%d of %d): %v", len(up.pl.Territory), up.pl.Maxchunks, up.pl.Territory)
 		if up.pl.AdminLevel > 0 {
 			cc := up.pl.Coord.GetChunkCoord()
 			cp := ChunkFind_WLwWLc(cc)
@@ -309,7 +302,7 @@ func (up *user) TerritoryGrant(arg string) {
 
 func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	const usage = "Usage: /territory claim [up/down]"
-	if up.pl.AdminLevel < 1 && len(up.pl.territory) >= up.pl.Maxchunks {
+	if up.pl.AdminLevel < 1 && len(up.pl.Territory) >= up.pl.Maxchunks {
 		up.Printf_Bl("#FAIL !You are not allowed more chunks than %d", up.pl.Maxchunks)
 		return
 	}
@@ -354,7 +347,7 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	}
 
 	// Make sure either it is the first chunk, or an adjacent chunk is already allocated, or the request will be denied.
-	approved := len(up.pl.territory) == 0 || up.pl.AdminLevel > 0
+	approved := len(up.pl.Territory) == 0 || up.pl.AdminLevel > 0
 	adjacent := dBGetAdjacentChunks(&cc)
 	for _, cp := range adjacent {
 		if cp.owner == up.pl.Id {
@@ -374,18 +367,18 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	cp.Write()
 	cp.Unlock()
 	up.Printf_Bl("!Congratulations, you now own chunk %v", cc)
-	if up.pl.territory == nil {
-		up.pl.territory = []chunkdb.CC{cc}
+	if up.pl.Territory == nil {
+		up.pl.Territory = []chunkdb.CC{cc}
 	} else {
-		for _, chunk := range up.pl.territory {
+		for _, chunk := range up.pl.Territory {
 			if chunk.X == cc.X && chunk.Y == cc.Y && chunk.Z == cc.Z {
 				log.Printf("Chunk %v allocated to user %d (%s), but was already in DB list\n", cc, up.pl.Id, up.pl.Name)
 				return
 			}
 		}
-		up.pl.territory = append(up.pl.territory, cc)
+		up.pl.Territory = append(up.pl.Territory, cc)
 	}
-	chunkdb.SaveAvatar_Bl(up.pl.Id, up.pl.territory)
+	up.pl.Save_Bl()
 }
 
 func (up *user) TellOthers_RLaBl(arg string) {

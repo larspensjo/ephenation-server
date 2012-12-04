@@ -60,7 +60,7 @@ type player struct {
 	HomeSP      user_coord   // Your home spawn, if any.
 	ReviveSP    user_coord   // This is where you come when you die.
 	TargetCoor  user_coord   // Used for targeting mechanisms
-	territory   []chunkdb.CC // The chunks allocated for this player. TODO: Not saved with player, should be in 'user' instead.
+	Territory   []chunkdb.CC // The chunks allocated for this player.
 	Listeners   []uint32     // The list of people listening on this player logging in and out.
 	Maxchunks   int          // Max number of chunks this player can own.
 	BlockAdd    uint32       // Blocks added by this player
@@ -70,7 +70,9 @@ type player struct {
 	Body        uint16       // Body type
 	Keys        keys.KeyRing // The list of keys that the player has
 	Lastseen    string       // String format date
-	Owner       string       // The owner, which is an email
+	Email       string       // The owner, which is an email
+	License     string
+	Password    string
 	Inventory   PlayerInv
 }
 
@@ -78,13 +80,13 @@ func (this *player) String() string {
 	return fmt.Sprintf("[%s %v]", this.Name, this.Coord)
 }
 
-// Return true if ok, and the uid of the player.
-func (pl *player) Load_WLwBlWLc(owner string) bool {
+// Return true if ok
+func (pl *player) Load_WLwBlWLc(email string) bool {
 	// Connect to database
 	db := ephenationdb.New()
-	err := db.C("avatars").Find(bson.M{"owner": owner}).One(pl)
+	err := db.C("avatars").Find(bson.M{"email": email}).One(pl)
 	if err != nil {
-		log.Println("Avatar for", owner, err)
+		log.Println("Avatar for", email, err)
 		return false
 	}
 
@@ -103,13 +105,6 @@ func (pl *player) Load_WLwBlWLc(owner string) bool {
 		pl.HomeSP = pl.Coord
 	}
 
-	// Load the allocated territories. This is loaded every time a player logs in, but not at logout or player save.
-	// It will however be updated immediately when the player changes his allocation.
-	terr, ok := chunkdb.ReadAvatar_Bl(pl.Id)
-	if !ok {
-		return false
-	}
-	pl.territory = terr
 	// fmt.Printf("User: %#v\n", pl)
 	return true
 }
@@ -131,7 +126,7 @@ func (pl *player) Save_Bl() bool {
 	pl.LogonTimer = start // Use the stored value to avoid mismatch
 	pl.TimeOnline += uint32(start.Sub(pl.LogonTimer) / time.Second)
 	db := ephenationdb.New()
-	_, err := db.C("avatars").UpsertId(pl.Id, pl)
+	err := db.C("avatars").UpdateId(pl.Id, pl)
 
 	if err != nil {
 		log.Println("Save", pl.Name, err)
@@ -148,6 +143,7 @@ func (pl *player) Save_Bl() bool {
 	return true
 }
 
+// This is mostly used for testing, and not part of the regular functionality.
 func (pl *player) New_WLwWLc(name string) {
 	// All players get a new struct, so there is no need to initialize 0 items.
 	pl.Name = name

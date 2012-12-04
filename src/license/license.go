@@ -21,13 +21,8 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
-	"ephenationdb"
 	"flag"
-	"fmt"
 	"io"
-	"labix.org/v2/mgo/bson"
-	"log"
-	"time"
 )
 
 var verboseFlag = flag.Int("license.v", 0, "Debug license management, Higher number gives more")
@@ -39,82 +34,16 @@ const (
 
 // All this data is saved with the license (user DB). All names beginning with upper case will be saved.
 type License struct {
-	Mail     string `bson:"_id"`
+	Email    string
 	Password string // The password of the license
-	License  string // The license for this person
-	LastSeen string // Date when this player was last logged on
-}
-
-// Load a license. Return nil if error.
-func Load_Bl(mail string) *License {
-	var license License
-
-	start := time.Now()
-	db := ephenationdb.New()
-	err := db.C("users").FindId(mail).One(&license)
-
-	if err != nil {
-		log.Println("User", mail, err)
-		return nil
-	}
-
-	if *verboseFlag > 0 {
-		log.Printf("license.Load done: %v\n", license)
-		elapsed := time.Now().Sub(start)
-		if elapsed > UPPER_TIME_LIMIT {
-			log.Printf("license.Load %d ms\n", elapsed/1e6)
-		}
-	}
-
-	return &license
-}
-
-// Update user last seen
-func (lp *License) SaveLogonTime_Bl() {
-	now := time.Now()
-	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
-	db := ephenationdb.New()
-	c := db.C("users")
-	err := c.UpdateId(lp.Mail, bson.M{"$set": bson.M{"lastseen": nowstring}})
-	if err != nil {
-		log.Println("Update", lp.Mail, ":")
-		return
-	}
-
-	elapsed := time.Now().Sub(now)
-	// if elapsed > UPPER_TIME_LIMIT && *verboseFlag > 0 {
-	log.Printf("license.SaveLogonTime %d ms\n", elapsed/1e6)
-	// }
-	return
-}
-
-func (lp *License) Save_Bl() bool {
-	start := time.Now()
-	db := ephenationdb.New()
-	c := db.C("users")
-	_, err := c.UpsertId(lp.Mail, lp)
-	if err != nil {
-		log.Println("UsertId failed", lp, ":", err)
-		return false
-	}
-
-	elapsed := time.Now().Sub(start)
-	// if elapsed > UPPER_TIME_LIMIT && *verboseFlag > 0 {
-	log.Printf("license.Save %d ms\n", elapsed/1e6)
-	// }
-	return true
+	License  string // The license key for this person
 }
 
 // Compare the given password with the stored one. The stored password
 // is scrambled using md5, and so is never available as readable text.
-func (lp *License) VerifyPassword(passw string, salt string) bool {
-	hash := md5.New()
-	_, err := io.WriteString(hash, salt+passw)
-	if err != nil {
-		panic("license.VerifyPassword write to hash")
-	}
+func VerifyPassword(passwclear, passwordcrypted string, salt string) bool {
 	// fmt.Printf("license.VerifyPassword: '%s' - '%s'\n", hex.EncodeToString(hash.Sum()), lp.Password)
-	if hex.EncodeToString(hash.Sum(nil)) == lp.Password {
+	if EncryptPassword(passwclear, salt) == passwordcrypted {
 		return true
 	}
 	return false
@@ -122,14 +51,13 @@ func (lp *License) VerifyPassword(passw string, salt string) bool {
 
 // Update the password with a new one. The stored password
 // is scrambled using md5, and so is never available as readable text.
-func (lp *License) NewPassword(passw string) {
+func EncryptPassword(passw, salt string) string {
 	hash := md5.New()
 	_, err := io.WriteString(hash, passw)
 	if err != nil {
 		panic("license.NewPassword write to hash")
 	}
-	// fmt.Println("NewPassword hash", hash.Sum())
-	lp.Password = hex.EncodeToString(hash.Sum(nil))
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func GenerateKey() string {
@@ -148,9 +76,9 @@ func GenerateKey() string {
 	return string(str[:])
 }
 
-// Use a mail and a password, and create a license
-func Make(mail, password string) *License {
-	lic := &License{Mail: mail, License: GenerateKey()}
-	lic.NewPassword(password)
-	return lic
+// Use a license key and a password
+func Make(password, salt string) (string, string) {
+	licence := GenerateKey()
+	EncryptPassword := EncryptPassword(password, salt)
+	return licence, EncryptPassword
 }

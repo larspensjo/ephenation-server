@@ -104,7 +104,6 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 	buff := make([]byte, 50) // Command buffer, also used for blocking messages.
 	up := allPlayers[i]
 	up.pl.Name = dummyLoginName // To have something to print
-	up.lic = nil                // Just a safety precaution
 	previous := time.Now()
 	longPrevious := previous
 	previousAttack := previous

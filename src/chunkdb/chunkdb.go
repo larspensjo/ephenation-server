@@ -22,25 +22,12 @@ package chunkdb
 // This table contains information about what users own what chunks.
 //
 
-import (
-	"ephenationdb"
-	"flag"
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
-	"log"
-)
-
 // A chunk coordinate, an address of any chunk in the world. This will limit the size of the world
 // to 0x100000000 * 32 = 1,37E11 blocks
 type CC struct {
 	// Values are scaled by CHUNK_SIZE to get block coordinates
 	X, Y, Z int32 // Relative world center
 }
-
-var (
-	disableSave = flag.Bool("chunkdb.disablesave", false, "Disable saving any data. Used for testing.")
-	db          *mgo.Database
-)
 
 // Given only the LSB of the chunk coordinate, compute the full coordinate, relative to
 // a given coordinate. A requirement is that the distance from the relative chunk is small.
@@ -69,40 +56,6 @@ func (this CC) UpdateLSB(x, y, z uint8) (ret CC) {
 		ret.Z -= 0x100
 	}
 	return
-}
-
-// Find the list of all chunks allocated for an avatar
-// Return false in case of failure
-func ReadAvatar_Bl(avatarID uint32) ([]CC, bool) {
-	db = ephenationdb.New()
-	var ret []CC
-	err := db.C("chunkdata").Find(bson.M{"avatarID": avatarID}).All(&ret)
-	if err != nil {
-		log.Println(err)
-		return nil, false
-	}
-	return ret, true
-}
-
-// Save the allocated chunks for the specified avatar
-func SaveAvatar_Bl(avatar uint32, chunks []CC) bool {
-	if *disableSave {
-		// Ignore the save, pretend everything is fine
-		return true
-	}
-	c := ephenationdb.New().C("chunkdata")
-
-	if len(chunks) == 0 {
-		return true
-	}
-	for _, ch := range chunks {
-		_, err := c.Upsert(bson.M{"x": ch.X, "y": ch.Y, "z": ch.Z}, bson.M{"x": ch.X, "y": ch.Y, "z": ch.Z, "avatarID": avatar})
-		if err != nil {
-			log.Println(err)
-			return false
-		}
-	}
-	return true
 }
 
 // Compare two chunk coordinates for equality

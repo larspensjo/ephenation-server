@@ -23,10 +23,12 @@ import (
 	"client_prot"
 	cryptrand "crypto/rand"
 	"crypto/rc4"
+	"ephenationdb"
 	"fmt"
 	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
 	"github.com/robfig/goconfig/config"
 	"io/ioutil"
+	"labix.org/v2/mgo/bson"
 	"license"
 	"log"
 	"math"
@@ -168,23 +170,16 @@ func (up *user) CmdLogin_WLwWLuWLqBlWLc(email string) {
 		up.loginAck_WLuWLqBlWLa()
 		up.pl.AdminLevel = 9
 	} else {
-		lic := license.Load_Bl(email)
-		up.Lock()
-		up.lic = lic
+		ok := up.pl.Load_WLwBlWLc(email)
 		up.challenge = make([]byte, LoginChallengeLength)
 		cryptrand.Read(up.challenge)
-		if lic != nil {
-			ok := up.pl.Load_WLwBlWLc(email)
-			if !ok {
-				up.lic = nil // Failed to load player data, have fail login (do not know avatar name)
-			}
-		} else if lic == nil {
-			if *verboseFlag > 0 {
-				log.Printf("Login failed or no license for '%v'\n", email)
-			}
+		if !ok && *verboseFlag > 0 {
+			log.Printf("Login failed or no license for '%v'\n", email)
+			// We know login failed already, but don't termibate here. Wait
+			// until player has given the password. The reason is that there
+			// shall be the error if the email is wrong or the password is wrong.
 		}
 		up.connState = PlayerConnStatePass
-		up.Unlock()
 		// Request a password, even though the license may be incorrect.
 		up.writeBlocking_Bl([]byte{3 + LoginChallengeLength, 0, client_prot.CMD_REQ_PASSWORD})
 		up.writeBlocking_Bl(up.challenge)
@@ -218,15 +213,8 @@ func xorVector(v1, v2 []byte) (ret []byte) {
 func (up *user) CmdPassword_WLwWLuWLqBlWLc(encrPass []byte) bool {
 	// The password is given by the client as an encrypted byte vector.
 	// fmt.Printf("CmdPassword: New player encr passwd%v\n", encrPass)
-	if up.lic == nil {
-		// CmdLogin_WLwWLuWLqBlWLc(up.pl.Name, index)
-		if *verboseFlag > 0 {
-			log.Println("Terminate because of no license")
-		}
-		return false
-	}
 	// Decrypt the password using the full license key.
-	cipher, err := rc4.NewCipher(xorVector([]byte(up.lic.License), up.challenge))
+	cipher, err := rc4.NewCipher(xorVector([]byte(up.pl.License), up.challenge))
 	if err != nil {
 		log.Printf("CmdPassword: NewCipher1 returned %v\n", err)
 		return false
@@ -234,7 +222,7 @@ func (up *user) CmdPassword_WLwWLuWLqBlWLc(encrPass []byte) bool {
 	passw := make([]byte, len(encrPass))
 	cipher.XORKeyStream(passw, encrPass)
 	// fmt.Printf("CmdPassword: Decrypted password is %#v\n", string(passw))
-	if !up.lic.VerifyPassword(string(passw), encryptionSalt) {
+	if !license.VerifyPassword(string(passw), up.pl.Password, encryptionSalt) {
 		// fmt.Println("CmdPassword: stored password doesn't match the given")
 		// CmdLogin_WLwWLuWLqBlWLc(up.pl.Name, index)
 		if *verboseFlag > 0 {
@@ -243,7 +231,13 @@ func (up *user) CmdPassword_WLwWLuWLqBlWLc(encrPass []byte) bool {
 		return false
 	}
 	// Save player logon time
-	up.lic.SaveLogonTime_Bl()
+	now := time.Now()
+	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
+	db := ephenationdb.New()
+	err = db.C("avatars").UpdateId(up.pl.Id, bson.M{"$set": bson.M{"lastseen": nowstring}})
+	if err != nil {
+		log.Println("Update lastseen", err)
+	}
 	up.loginAck_WLuWLqBlWLa()
 	return true
 }
@@ -349,7 +343,7 @@ func CmdClose_BlWLqWLuWLa(i int) {
 func CmdSavePlayerNow_RluBl(index int) {
 	up := allPlayers[int(index)]
 	up.RLock()
-	if up.lic != nil && up.connState == PlayerConnStateIn {
+	if up.pl.Id != 0 && up.connState == PlayerConnStateIn {
 		up.pl.Save_Bl()
 	}
 	up.RUnlock()

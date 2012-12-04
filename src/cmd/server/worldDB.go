@@ -678,7 +678,7 @@ func (cp *chunk) SetTeleport(cc chunkdb.CC, up *user, x, y, z uint8) {
 
 	// Count the number of teleports in other chunks that the player already has
 	numTeleports := 0
-	for _, terr := range up.pl.territory {
+	for _, terr := range up.pl.Territory {
 		_, _, _, found := superChunkManager.GetTeleport(&terr)
 		if found && terr != cc {
 			numTeleports++

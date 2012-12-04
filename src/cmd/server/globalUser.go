@@ -33,7 +33,7 @@ func SaveAllPlayers_RLa() {
 	allPlayersSem.RLock()
 	for i := 0; i < MAX_PLAYERS; i++ {
 		up := allPlayers[i]
-		if up != nil && up.lic != nil && up.connState == PlayerConnStateIn {
+		if up != nil && up.pl.Email != "" && up.connState == PlayerConnStateIn {
 			up.forceSave = true
 		}
 		// up.Printf("Autosave");

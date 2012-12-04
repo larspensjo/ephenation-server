@@ -15,6 +15,9 @@
 // along with Ephenation.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+// TODO look for:
+//  pl.Owner => pl.Email
+
 package main
 
 import (
@@ -200,35 +203,29 @@ func CreateUser(str string) {
 	}
 	var pl player
 	pl.New_WLwWLc(args[2])
-	pl.Owner = args[0]
-	lic := license.Make(args[0], args[1])
-	if len(args) == 4 {
-		lic.License = args[3] // Override
-	}
+	pl.Email = args[0]
+	pl.License, pl.Password = license.Make(args[1], "")
+	pl.License = args[3] // Override
 	c := ephenationdb.New().C("counters")
-	err := c.UpdateId("avatarId", bson.M{"$inc": bson.M{"c": 1}})
-	if err != nil {
-		fmt.Println("Failed to update unique counter 'avatarId' in collection 'counter'", err)
-		return
-	}
 	var id struct {
 		C uint32
 	}
-	err = c.FindId("avatarId").One(&id)
+	err := c.FindId("avatarId").One(&id)
 	if err != nil {
 		fmt.Println("counters.avatarId", err)
 		return
 	}
-	pl.Id = id.C
-	if lic.Save_Bl() {
-		fmt.Println("Created Licence", lic.License, "for", lic.Mail)
-	} else {
-		fmt.Println("Failed to create license for", lic.Mail)
+	err = c.UpdateId("avatarId", bson.M{"$inc": bson.M{"c": 1}})
+	if err != nil {
+		fmt.Println("Failed to update unique counter 'avatarId' in collection 'counter'", err)
 		return
 	}
-	if pl.Save_Bl() {
-		fmt.Println("Created avatar number", pl.Id, ":", pl.Name)
-	} else {
-		fmt.Println("Failed to create avatar", pl.Name)
+	pl.Id = id.C
+	db := ephenationdb.New()
+	err = db.C("avatars").Insert(&pl)
+	if err != nil {
+		log.Println("Save", pl.Name, err)
+		return
 	}
+	fmt.Println("Created avatar number", pl.Id, ":", pl.Name)
 }

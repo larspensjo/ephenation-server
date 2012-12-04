@@ -26,11 +26,9 @@ import (
 	"chunkdb"
 	"client_prot"
 	"crypto/rc4"
-	"ephenationdb"
 	"fmt"
 	"github.com/larspensjo/Go-simplex-noise/simplexnoise"
 	"keys"
-	"license"
 	"math"
 	"quadtree"
 	"time"
@@ -55,16 +53,9 @@ func DoTest() {
 	DoTestQuadtree_WLq()
 	DoTestMonsterSpawnAndPurge_WLuWLqBlWLwWLaWLmWLc()
 	DoTestEncrypt()
-	dbok := (ephenationdb.New() != nil)
-	if dbok {
-		DoTestLicense_Bl()
-	}
 	DoTestSimplexNoise()
 	DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc()
 	DoTestCoordinates()
-	if dbok {
-		DoTestChunkdb_WLwBlWLc()
-	}
 	DoTestCombat_WLuBl()
 	DoTestFriends_WLaWLwWLuWLqBlWLc()
 	DoTestKeyRing()
@@ -183,7 +174,7 @@ func DoTestMonsterSpawnAndPurge_WLuWLqBlWLwWLaWLmWLc() {
 	up.CmdLogin_WLwWLuWLqBlWLc("test0")                                                                              // login name is an email, but don't care for this test.
 	DoTestCheck("DoTestMonsterSpawnAndPurge: request password", !conn.TestCommandSeen(client_prot.CMD_REQ_PASSWORD)) // No password for test users
 	DoTestCheck("DoTestMonsterSpawnAndPurge: login ack", conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
-	DoTestCheck("DoTestMonsterSpawnAndPurge: expect no license", up.lic == nil)
+	DoTestCheck("DoTestMonsterSpawnAndPurge: expect no uid", up.pl.Id == 0)
 	// fmt.Printf("%#v\n", up)
 	for i := 0; i < MonsterLimitForRespawn; i++ {
 		addMonsterToPlayer_WLwWLuWLqWLmWLc(up)
@@ -232,26 +223,6 @@ func DoTestEncrypt() {
 			}
 		}
 		DoTestCheck("DoTestEncrypt check encryption", eq)
-	}
-}
-
-func DoTestLicense_Bl() {
-	const (
-		email = "a@b"
-		name  = "nm"
-		pass  = "abcdefABCDEF"
-	)
-	lic := license.Make(email, pass)
-	if *verboseFlag > 0 {
-		fmt.Printf("DoTestLicense load lic1 %#v\n", lic)
-	}
-	DoTestCheck("DoTestLicense VerifyPassword1", lic.VerifyPassword(pass, encryptionSalt))
-	saveSuccess := lic.Save_Bl()
-	DoTestCheck("DoTestLicense Save", saveSuccess)
-	lic2 := license.Load_Bl(email)
-	DoTestCheck("DoTestLicense Load", lic2 != nil)
-	if lic2 != nil {
-		DoTestCheck("DoTestLicense VerifyPassword2", lic2.VerifyPassword(pass, encryptionSalt))
 	}
 }
 
@@ -553,58 +524,6 @@ func DoTestCoordinates() {
 	c2 := cLow.UpdateLSB(0xFF, 0xFE, 0xFD)
 	DoTestCheck("DoTestCoordinates chunkdb.CC.UpdateLSB low", c2.X == -1 && c2.Y == -2 && c2.Z == -3)
 	// fmt.Println(c1, c2)
-}
-
-func DoTestChunkdb_WLwBlWLc() {
-	const (
-		testName  = "a@b"         // This is a special name allocated in the avatar DB for testing.
-		testCoord = math.MaxInt32 // Too far away for anyone to reach
-	)
-	pl := &player{}
-	begin := time.Now()
-	ok := pl.Load_WLwBlWLc(testName)
-	DoTestCheck("DoTestChunkdb: pl.Load()", ok)
-	if !ok {
-		// The load failed, or there was no avatar in the DB for this test. Create one.
-		pl.Name = "verifying"
-		pl.Id = OWNER_TEST
-		pl.Owner = testName
-		ok = pl.Save_Bl()
-		DoTestCheck("DoTestChunkdb: pl.Save_Bl() after load failure", ok)
-	}
-	delta := time.Now().Sub(begin)
-	if *verboseFlag > 0 {
-		fmt.Printf("DoTestChunkdb: pl.Load() %d ms\n", delta/1e6)
-		fmt.Printf("DoTestChunkdb: Player %#v\n", pl.String())
-	}
-	terr := pl.territory
-	DoTestCheck("DoTestChunkdb: Initial empty territory list", terr == nil)
-	chunk1 := chunkdb.CC{testCoord, 0, 0}
-	chunk2 := chunkdb.CC{0, testCoord, 0}
-	chunk3 := chunkdb.CC{0, 0, testCoord}
-	chunkList := []chunkdb.CC{chunk1, chunk2, chunk3}
-	ok = chunkdb.SaveAvatar_Bl(pl.Id, chunkList)
-	DoTestCheck("DoTestChunkdb: chunkdb.SaveAvatar() success", ok)
-
-	// Load the player again, and verify that the chunk list is updated.
-	ok = pl.Load_WLwBlWLc(testName)
-	DoTestCheck("DoTestChunkdb: second pl.Load() success", ok)
-	terr = pl.territory
-	DoTestCheck("DoTestChunkdb: Territory list now exists", len(terr) == 3)
-	if len(terr) == 3 {
-		// The returned list is in the opposite order. It is probably incorrect to assume that.
-		// TODO: This test usually fail, and then succeed next time!
-		DoTestCheck("DoTestChunkdb: Same territory list", terr != nil && terr[0].Equal(chunk1) && terr[1].Equal(chunk2) && terr[2].Equal(chunk3))
-	} else {
-		fmt.Printf("DoTestChunkdb: Returned terr list: %v\n", terr)
-	}
-
-	// Clean up and clear the territory list
-	ok = chunkdb.SaveAvatar_Bl(pl.Id, nil)
-	DoTestCheck("DoTestChunkdb: chunkdb.SaveAvatar(nil) success", ok)
-	ok = pl.Load_WLwBlWLc(testName)
-	DoTestCheck("DoTestChunkdb: third pl.Load() success", ok)
-	DoTestCheck("DoTestChunkdb: Final empty territory list", pl.territory == nil)
 }
 
 func DoTestCombat_WLuBl() {
