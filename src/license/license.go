@@ -18,14 +18,13 @@
 package license
 
 import (
-	"fmt"
-	"io"
-	//	"os"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
 	"ephenationdb"
 	"flag"
+	"fmt"
+	"io"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"time"
@@ -76,7 +75,7 @@ func (lp *License) SaveLogonTime_Bl() {
 	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
 	db := ephenationdb.New()
 	c := db.C("users")
-	err := c.UpdateId(lp.Mail, bson.M{"lastseen": nowstring})
+	err := c.UpdateId(lp.Mail, bson.M{"$set": bson.M{"lastseen": nowstring}})
 	if err != nil {
 		log.Println("Update", lp.Mail, ":")
 		return
