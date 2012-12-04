@@ -28,7 +28,6 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
-	"os"
 )
 
 // A chunk coordinate, an address of any chunk in the world. This will limit the size of the world
@@ -38,51 +37,10 @@ type CC struct {
 	X, Y, Z int32 // Relative world center
 }
 
-type callbackFunc func(data interface{}, avatarID uint32)
-
-type request struct {
-	chunk CC
-	data  interface{}
-	cb    callbackFunc
-}
-
 var (
 	disableSave = flag.Bool("chunkdb.disablesave", false, "Disable saving any data. Used for testing.")
-	ch          = make(chan request, 100)
 	db          *mgo.Database
 )
-
-// Take a chunk address, a chunk pointer and a callback function.
-// Retrieve the owner (avatar ID) of the chunk, and call the callback function
-// TODO: This isn't used any longer
-func Update(chunk CC, data interface{}, cb callbackFunc) {
-	// The following statement will send to 'ch' if possible, otherwise return and forget about it.
-	select {
-	case ch <- request{chunk, data, cb}:
-	default:
-	}
-}
-
-// This is the main polling function, meant to be executed for ever as a go routine.
-func Poll_Bl() {
-	if *disableSave {
-		log.Println("Saving to 'chunkdata' is disabled")
-	}
-	db = ephenationdb.New()
-	if db == nil {
-		log.Println("chunkdb.Poll_Bl requires access to SQL DB")
-		return
-	}
-	for {
-		req, ok := <-ch
-		if !ok {
-			log.Printf("Failed to read from channel\n")
-			os.Exit(1)
-		}
-		avatarId := readChunk_Bl(req.chunk)
-		req.cb(req.data, avatarId)
-	}
-}
 
 // Given only the LSB of the chunk coordinate, compute the full coordinate, relative to
 // a given coordinate. A requirement is that the distance from the relative chunk is small.
@@ -111,20 +69,6 @@ func (this CC) UpdateLSB(x, y, z uint8) (ret CC) {
 		ret.Z -= 0x100
 	}
 	return
-}
-
-// Find the avatar ID for a chunk. Return 0 when none found.
-func readChunk_Bl(chunk CC) uint32 {
-	var Id struct {
-		AvatarID uint32
-	}
-	err := db.C("chunkdata").Find(bson.M{"x": chunk.X, "y": chunk.Y, "z": chunk.Z}).One(&Id)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-		return 0
-	}
-	return Id.AvatarID
 }
 
 // Find the list of all chunks allocated for an avatar

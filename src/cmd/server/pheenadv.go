@@ -137,7 +137,6 @@ func main() {
 		log.Printf("%v, server abort\n", err)
 		os.Exit(1)
 	}
-	go chunkdb.Poll_Bl() // Will terminate if there is no access to the SQL DB
 	go ProcAutosave_RLu()
 	go ProcPurgeOldChunks_WLw()
 	go CatchSig()
