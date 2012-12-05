@@ -231,10 +231,9 @@ func (up *user) CmdPassword_WLwWLuWLqBlWLc(encrPass []byte) bool {
 		return false
 	}
 	// Save player logon time
-	now := time.Now()
-	nowstring := fmt.Sprintf("%4v-%02v-%02v", now.Year(), int(now.Month()), now.Day())
+	up.pl.Lastseen = time.Now()
 	db := ephenationdb.New()
-	err = db.C("avatars").UpdateId(up.pl.Id, bson.M{"$set": bson.M{"lastseen": nowstring}})
+	err = db.C("avatars").UpdateId(up.pl.Id, bson.M{"$set": bson.M{"lastseen": up.pl.Lastseen}})
 	if err != nil {
 		log.Println("Update lastseen", err)
 	}

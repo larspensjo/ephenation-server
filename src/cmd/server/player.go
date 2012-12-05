@@ -37,7 +37,6 @@ import (
 type player struct {
 	Id          uint32       `bson:"_id"`
 	ZSpeed      float64      // Upward movement speed
-	LogonTimer  time.Time    // Store time to count user online time
 	Name        string       // The name of the avatar
 	Coord       user_coord   // The current player feet coordinates
 	AdminLevel  uint8        // A constant from Admin*, used to control the rights.
@@ -69,7 +68,8 @@ type player struct {
 	Head        uint16       // Head type
 	Body        uint16       // Body type
 	Keys        keys.KeyRing // The list of keys that the player has
-	Lastseen    string       // String format date
+	logonTimer  time.Time    // Used to keep track of how long he player has been online
+	Lastseen    time.Time    // When player weas last seen in the game
 	Email       string       // The owner, which is an email
 	License     string
 	Password    string
@@ -97,7 +97,7 @@ func (pl *player) Load_WLwBlWLc(email string) bool {
 		pl.Maxchunks = CnfgMaxOwnChunk
 	}
 
-	pl.LogonTimer = time.Now()
+	pl.logonTimer = time.Now()
 
 	if pl.ReviveSP.X == 0 && pl.ReviveSP.Y == 0 && pl.ReviveSP.Z == 0 {
 		// Check if there is any spawn point defined.
@@ -118,13 +118,10 @@ func Q(b bool) int {
 
 // Return true if the save succeeded.
 func (pl *player) Save_Bl() bool {
-	// Connect to database
 	start := time.Now()
-	// Update last seen online
-	pl.Lastseen = fmt.Sprintf("%4v-%02v-%02v", start.Year(), int(start.Month()), start.Day())
-	// Update total time online, in seconds
-	pl.LogonTimer = start // Use the stored value to avoid mismatch
-	pl.TimeOnline += uint32(start.Sub(pl.LogonTimer) / time.Second)
+	pl.Lastseen = start                                             // Update last seen online
+	pl.TimeOnline += uint32(start.Sub(pl.logonTimer) / time.Second) // Update total time online, in seconds
+	pl.logonTimer = start
 	db := ephenationdb.New()
 	err := db.C("avatars").UpdateId(pl.Id, pl)
 
