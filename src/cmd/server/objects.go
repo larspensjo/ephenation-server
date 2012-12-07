@@ -98,9 +98,9 @@ func (inv *PlayerInv) Clear() {
 }
 
 func (inv *PlayerInv) AddOneObject(t ObjectCode, level uint32) {
-	for _, old := range *inv {
+	for i, old := range *inv {
 		if old.Type == t && old.Level == level {
-			old.Count++
+			(*inv)[i].Count++
 			return
 		}
 	}
@@ -197,7 +197,8 @@ func ConvertHelmetTypeToID(helmetgrade uint8) ObjectCode {
 // Use a item of type 't' and level 'lvl'. The type can be counted on being 4 characters.
 // Return first flag for being consumed, and teh second to broadcast the action to other players
 func UsePotion_Wlu(up *user, t ObjectCode, lvl uint32) (consumed, broadcast bool) {
-	if up.pl.Dead {
+	pl := &up.player
+	if pl.Dead {
 		return false, false
 	}
 	switch t {
@@ -205,15 +206,15 @@ func UsePotion_Wlu(up *user, t ObjectCode, lvl uint32) (consumed, broadcast bool
 		up.Lock()
 		// TODO: The amount should depend on the level
 		if up.Heal(0.3, 0) {
-			up.pl.Inventory.Remove(ItemHealthPotionID, lvl)
+			pl.Inventory.Remove(ItemHealthPotionID, lvl)
 			consumed = true
 		}
 		up.Unlock()
 	case ItemManaPotionID:
 		up.Lock()
 		// TODO: The amount should depend on the level
-		if up.Mana(0.3) {
-			up.pl.Inventory.Remove(ItemManaPotionID, lvl)
+		if up.AddMana(0.3) {
+			pl.Inventory.Remove(ItemManaPotionID, lvl)
 			consumed = true
 		}
 		up.Unlock()
@@ -226,11 +227,15 @@ func UsePotion_Wlu(up *user, t ObjectCode, lvl uint32) (consumed, broadcast bool
 func UseWeapon_Wlu(up *user, t ObjectCode, lvl uint32) (bool, bool) {
 	replaced := false
 	grade := t[3] - '0'
+	pl := &up.player
 	up.Lock()
-	if up.pl.WeaponLvl+uint32(up.pl.WeaponGrade) < lvl+uint32(grade) {
-		up.pl.WeaponGrade = grade
-		up.pl.WeaponLvl = lvl
-		up.pl.Inventory.Remove(t, lvl)
+	if pl.WeaponLvl+uint32(pl.WeaponGrade) < lvl+uint32(grade) {
+		// Move the old item back to the inventory
+		pl.Inventory.AddOneObject(ConvertWeaponTypeToID(pl.WeaponGrade), pl.WeaponLvl)
+		// Update current item type
+		pl.WeaponGrade = grade
+		pl.WeaponLvl = lvl
+		pl.Inventory.Remove(t, lvl)
 		replaced = true
 	}
 	up.Unlock()
@@ -242,11 +247,15 @@ func UseWeapon_Wlu(up *user, t ObjectCode, lvl uint32) (bool, bool) {
 func UseArmor_Wlu(up *user, t ObjectCode, lvl uint32) (bool, bool) {
 	replaced := false
 	grade := t[3] - '0'
+	pl := &up.player
 	up.Lock()
-	if up.pl.ArmorLvl+uint32(up.pl.ArmorGrade) < lvl+uint32(grade) {
-		up.pl.ArmorGrade = grade
-		up.pl.ArmorLvl = lvl
-		up.pl.Inventory.Remove(t, lvl)
+	if pl.ArmorLvl+uint32(pl.ArmorGrade) < lvl+uint32(grade) {
+		// Move the old item back to the inventory
+		pl.Inventory.AddOneObject(ConvertArmorTypeToID(pl.ArmorGrade), pl.ArmorLvl)
+		// Update current item type
+		pl.ArmorGrade = grade
+		pl.ArmorLvl = lvl
+		pl.Inventory.Remove(t, lvl)
 		replaced = true
 	}
 	up.Unlock()
@@ -256,14 +265,15 @@ func UseArmor_Wlu(up *user, t ObjectCode, lvl uint32) (bool, bool) {
 // Use a item of type 't' and level 'lvl'. The type can be counted on being 4 characters.
 // Return first flag for being consumed, and teh second to broadcast the action to other players
 func UseScroll_Wlu(up *user, t ObjectCode, lvl uint32) (consumed, broadcast bool) {
-	if up.pl.Dead {
+	pl := &up.player
+	if pl.Dead {
 		return
 	}
 	switch t {
 	case ItemScrollRessID:
 		up.Lock()
-		up.pl.ReviveSP = up.pl.Coord
-		up.pl.Inventory.Remove(t, lvl)
+		pl.ReviveSP = pl.Coord
+		pl.Inventory.Remove(t, lvl)
 		up.Unlock()
 		consumed = true
 	}
@@ -275,11 +285,15 @@ func UseScroll_Wlu(up *user, t ObjectCode, lvl uint32) (consumed, broadcast bool
 func UseHelmet_Wlu(up *user, t ObjectCode, lvl uint32) (bool, bool) {
 	replaced := false
 	grade := t[3] - '0'
+	pl := &up.player
 	up.Lock()
-	if up.pl.HelmetLvl+uint32(up.pl.HelmetGrade) < lvl+uint32(grade) {
-		up.pl.HelmetGrade = grade
-		up.pl.HelmetLvl = lvl
-		up.pl.Inventory.Remove(t, lvl)
+	if pl.HelmetLvl+uint32(pl.HelmetGrade) < lvl+uint32(grade) {
+		// Move the old item back to the inventory
+		pl.Inventory.AddOneObject(ConvertHelmetTypeToID(pl.HelmetGrade), pl.HelmetLvl)
+		// Update current item type
+		pl.HelmetGrade = grade
+		pl.HelmetLvl = lvl
+		pl.Inventory.Remove(t, lvl)
 		replaced = true
 	}
 	up.Unlock()

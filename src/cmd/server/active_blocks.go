@@ -42,7 +42,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 	ignoreTrigger := false
 	// There is a theoretical chance that the following test can fail because of not using a lock.
 	// If so, the worst concequence would be that the trap would fail to trig.
-	if up.pl.Dead {
+	if up.Dead {
 		ignoreTrigger = true
 	}
 	// A filter to prevent the same trigger from activating again
@@ -67,7 +67,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 
 	// Normally, the player coordinate can not change from another process. If it would happen,
 	// in worst case we would nto find the trap.
-	coord := up.pl.Coord
+	coord := up.Coord
 	cc := coord.GetChunkCoord()
 	cp := ChunkFindCached_WLwWLc(cc)
 	x_off := uint8(int64(math.Floor(coord.X)) - int64(cc.X)*CHUNK_SIZE)
@@ -163,7 +163,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 func ActivatorIterator(f func(*user), list []quadtree.Object) (found int) {
 	for _, recepient := range list {
 		// For each object in the list, identify those that are players.
-		if other, ok := recepient.(*user); ok && !other.pl.Dead {
+		if other, ok := recepient.(*user); ok && !other.Dead {
 			f(other)
 			found++
 		}
@@ -187,19 +187,19 @@ func (up *user) ActivatorMessage_WLuWLqWLmWLc(line string, ac *user_coord, recep
 		switch {
 		case strings.HasPrefix(split[0], "/level>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.Level <= uint32(lim)
+			terminate = err == nil && up.Level <= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/level<"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.Level >= uint32(lim)
+			terminate = err == nil && up.Level >= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/admin>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.AdminLevel <= uint8(lim)
+			terminate = err == nil && up.AdminLevel <= uint8(lim)
 			if terminate {
 				return
 			}
@@ -338,7 +338,7 @@ func TestKeyCond_RLu(up *user, owner uint32, modifier string, descr string) bool
 	}
 	if err1 == nil {
 		up.RLock()
-		res := up.pl.Keys.Test(owner, uint(keyId))
+		res := up.Keys.Test(owner, uint(keyId))
 		up.RUnlock()
 		if !res {
 			up.Printf_Bl("%s", descr)
@@ -368,7 +368,7 @@ func ActivatorMessageAddKey_WLu(recepients []quadtree.Object, owner uint32, modi
 		if err1 == nil && err2 == nil {
 			key := keys.Make(owner, uint(keyId), name, uint(viewId))
 			up.Lock()
-			up.pl.Keys = up.pl.Keys.Add(key)
+			up.Keys = up.Keys.Add(key)
 			up.Unlock()
 		} else {
 			log.Println("Bad modifier", modifier, err1, err2)
@@ -387,16 +387,16 @@ func ActivatorMessageInventoryAdd(recepients []quadtree.Object, modifier string,
 	}
 	cost := math.Pow(2, quality-1) // Will give a value of 0,5, 1, 2, 4, or 8
 	f := func(up *user) {
-		cp := ChunkFindCached_WLwWLc(up.pl.Coord.GetChunkCoord())
+		cp := ChunkFindCached_WLwWLc(up.Coord.GetChunkCoord())
 		owner := cp.owner
 		costCovered := true
-		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.pl.Id != OWNER_TEST {
+		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.Id != OWNER_TEST {
 			// This time, also include the case where owner of chunk is up.
 			costCovered = score.Pay(owner, cost)
 		}
 		if costCovered {
 			AddOneObjectToUser_WLuBl(up, code)
-			// up.Printf("Added object %#v to %v", obj, up.pl.Name)
+			// up.Printf("Added object %#v to %v", obj, up.Name)
 		}
 	}
 	numRecepients := ActivatorIterator(f, recepients)

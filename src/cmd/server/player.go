@@ -31,15 +31,14 @@ import (
 	"time"
 )
 
+// Functions in this file are only called from the client process.
+
 // All this data is saved with the player. Only fields with upper case prefix are saved.
-// All functions in this file are only called from the client process.
+// There may be more data saved in the DB than is shown here.
 // TODO: Horisontal direction angle should be 0 radians to the east, as it is for monsters.
 type player struct {
-	Id          uint32       `bson:"_id"`
 	ZSpeed      float64      // Upward movement speed
-	Name        string       // The name of the avatar
 	Coord       user_coord   // The current player feet coordinates
-	AdminLevel  uint8        // A constant from Admin*, used to control the rights.
 	Flying      bool         // True if player is moving without any gravity.
 	Climbing    bool         // True if player is on a ladder. It is similar to the flyng mode.
 	Dead        bool         // True if the player is dead.
@@ -64,27 +63,23 @@ type player struct {
 	Maxchunks   int          // Max number of chunks this player can own.
 	BlockAdd    uint32       // Blocks added by this player
 	BlockRem    uint32       // Blocks removed by this player
-	TimeOnline  uint32       // Current time online
+	TimeOnline  uint32       // Total time online in seconds
 	Head        uint16       // Head type
 	Body        uint16       // Body type
 	Keys        keys.KeyRing // The list of keys that the player has
-	logonTimer  time.Time    // Used to keep track of how long he player has been online
 	Lastseen    time.Time    // When player weas last seen in the game
-	Email       string       // The owner, which is an email
-	License     string
-	Password    string
 	Inventory   PlayerInv
 }
 
-func (this *player) String() string {
-	return fmt.Sprintf("[%s %v]", this.Name, this.Coord)
+func (up *user) String() string {
+	return fmt.Sprintf("[%s %v]", up.Name, up.Coord)
 }
 
 // Return true if ok
-func (pl *player) Load_WLwBlWLc(email string) bool {
+func (up *user) Load_WLwBlWLc(email string) bool {
 	// Connect to database
 	db := ephenationdb.New()
-	err := db.C("avatars").Find(bson.M{"email": email}).One(pl)
+	err := db.C("avatars").Find(bson.M{"email": email}).One(&up.UserLoad)
 	if err != nil {
 		log.Println("Avatar for", email, err)
 		return false
@@ -92,17 +87,17 @@ func (pl *player) Load_WLwBlWLc(email string) bool {
 
 	// Some post processing
 
-	if pl.Maxchunks == 0 {
+	if up.Maxchunks == 0 {
 		// This parameter was not initialized.
-		pl.Maxchunks = CnfgMaxOwnChunk
+		up.Maxchunks = CnfgMaxOwnChunk
 	}
 
-	pl.logonTimer = time.Now()
+	up.logonTimer = time.Now()
 
-	if pl.ReviveSP.X == 0 && pl.ReviveSP.Y == 0 && pl.ReviveSP.Z == 0 {
+	if up.ReviveSP.X == 0 && up.ReviveSP.Y == 0 && up.ReviveSP.Z == 0 {
 		// Check if there is any spawn point defined.
-		pl.ReviveSP = pl.Coord
-		pl.HomeSP = pl.Coord
+		up.ReviveSP = up.Coord
+		up.HomeSP = up.Coord
 	}
 
 	// fmt.Printf("User: %#v\n", pl)
@@ -117,21 +112,22 @@ func Q(b bool) int {
 }
 
 // Return true if the save succeeded.
-func (pl *player) Save_Bl() bool {
+func (up *user) Save_Bl() bool {
 	start := time.Now()
-	pl.Lastseen = start                                             // Update last seen online
-	pl.TimeOnline += uint32(start.Sub(pl.logonTimer) / time.Second) // Update total time online, in seconds
-	pl.logonTimer = start
+	up.Lastseen = start                                             // Update last seen online
+	up.TimeOnline += uint32(start.Sub(up.logonTimer) / time.Second) // Update total time online, in seconds
+	up.logonTimer = start
 	db := ephenationdb.New()
-	err := db.C("avatars").UpdateId(pl.Id, pl)
+	err := db.C("avatars").UpdateId(up.Id, bson.M{"$set": &up.player}) // Only update the fields found in 'pl'.
 
 	if err != nil {
-		log.Println("Save", pl.Name, err)
+		log.Println("Save", up.Name, err)
+		log.Printf("%#v\n", up)
 		return false
 	}
 
 	if *verboseFlag > 1 {
-		log.Printf("up.Save_Bl saved %v\n", pl.Name)
+		log.Printf("up.Save_Bl saved %v\n", up.Name)
 	}
 	elapsed := time.Now().Sub(start)
 	if *verboseFlag > 0 {
@@ -141,11 +137,11 @@ func (pl *player) Save_Bl() bool {
 }
 
 // This is mostly used for testing, and not part of the regular functionality.
-func (pl *player) New_WLwWLc(name string) {
+func (up *user) New_WLwWLc(name string) {
 	// All players get a new struct, so there is no need to initialize 0 items.
-	pl.Name = name
-	pl.HitPoints = 1
-	pl.Mana = 1
+	up.Name = name
+	up.HitPoints = 1
+	up.Mana = 1
 	// Find ground for the player. Start from top of world and go down one block at a time
 	// TODO: the dependencies on chunks must not be done in this process.
 	// Players with the names "test" and a number are reserved names for testing. The number is
@@ -160,7 +156,7 @@ func (pl *player) New_WLwWLc(name string) {
 		a, b := math.Sincos(rand.Float64() * math.Pi * 2)
 		x = b * radie
 		y = a * radie
-		pl.Id = OWNER_TEST - uint32(num)
+		up.Id = OWNER_TEST - uint32(num)
 		// fmt.Printf("Test prefix, substr: %v, x,y : (%d,%d)\n", name[len(TestPlayerNamePrefix):], x, y)
 	}
 
@@ -173,8 +169,8 @@ func (pl *player) New_WLwWLc(name string) {
 	}
 	coord.Z += 1
 
-	pl.Coord = coord
-	pl.ReviveSP = coord
+	up.Coord = coord
+	up.ReviveSP = coord
 	// log.Printf("player.New %s at coord %v\n", pl.Name, pl.Coord)
 
 	return

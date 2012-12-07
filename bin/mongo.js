@@ -20,6 +20,7 @@
 // 'port': The port number used. Can be removed if default.
 //
 
+// The counters collection of documents is used to povide unique IDs.
 db.counters.drop()
 db.counters.insert({_id: "avatarId", c: 0}) // A document to produce avatar IDs
 db.counters.insert({_id: "newsId", c: 0}) // A document to produce news IDs
@@ -28,6 +29,9 @@ db.counters.insert({_id: "newsId", c: 0}) // A document to produce news IDs
 db.avatars.drop()
 db.avatars.ensureIndex({"name":1}, {unique:true}) // Avatar name must be unique
 db.avatars.ensureIndex({"email":1}, {unique:true}) // Only one avatar per owner
+db.avatars.ensureIndex({"level":1}, {unique:false}) // Used for sorting
+db.avatars.ensureIndex({"timeonline":1}, {unique:false}) // Used for sorting
+db.avatars.ensureIndex({"tscoretotal":1}, {unique:false}) // Used for sorting
 
 // News: _id is used for the numerical unique id.
 db.news.drop()

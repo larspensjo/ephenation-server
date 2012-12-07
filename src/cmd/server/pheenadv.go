@@ -15,9 +15,6 @@
 // along with Ephenation.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-// TODO look for:
-//  pl.Owner => pl.Email
-
 package main
 
 import (
@@ -27,6 +24,7 @@ import (
 	"fmt"
 	"github.com/robfig/goconfig/config"
 	"io/ioutil"
+	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"license"
 	"log"
@@ -201,31 +199,30 @@ func CreateUser(str string) {
 		fmt.Println("Usage: server -createuser=email,password,avatar[,licensekey]")
 		return
 	}
-	var pl player
-	pl.New_WLwWLc(args[2])
-	pl.Email = args[0]
-	pl.License, pl.Password = license.Make(args[1], "")
-	pl.License = args[3] // Override
+	var up user
+	up.New_WLwWLc(args[2])
+	up.Email = args[0]
+	up.License, up.Password = license.Make(args[1], "")
+	up.License = args[3] // Override
 	c := ephenationdb.New().C("counters")
 	var id struct {
 		C uint32
 	}
-	err := c.FindId("avatarId").One(&id)
-	if err != nil {
-		fmt.Println("counters.avatarId", err)
-		return
+	change := mgo.Change{
+		Update:    bson.M{"$inc": bson.M{"c": 1}},
+		ReturnNew: true,
 	}
-	err = c.UpdateId("avatarId", bson.M{"$inc": bson.M{"c": 1}})
+	_, err := c.FindId("avatarId").Apply(change, &id)
 	if err != nil {
 		fmt.Println("Failed to update unique counter 'avatarId' in collection 'counter'", err)
 		return
 	}
-	pl.Id = id.C
+	up.Id = id.C
 	db := ephenationdb.New()
-	err = db.C("avatars").Insert(&pl)
+	err = db.C("avatars").Insert(&up)
 	if err != nil {
-		log.Println("Save", pl.Name, err)
+		log.Println("Save", up.Name, err)
 		return
 	}
-	fmt.Println("Created avatar number", pl.Id, ":", pl.Name)
+	fmt.Println("Created avatar number", up.Id, ":", up.Name)
 }

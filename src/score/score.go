@@ -22,6 +22,7 @@ package score
 //
 
 import (
+	"chunkdb"
 	"ephenationdb"
 	"flag"
 	"fmt"
@@ -256,6 +257,7 @@ func loadFromSQL(db *mgo.Database, ts *territoryScore) {
 		TScoreTotal, TScoreBalance float64
 		TScoreTime                 uint32
 		Name                       string
+		Territory                  []chunkdb.CC // The chunks allocated for this player.
 	}
 	query := db.C("avatars").FindId(ts.uid)
 	err := query.One(&avatarScore)
@@ -264,8 +266,7 @@ func loadFromSQL(db *mgo.Database, ts *territoryScore) {
 		return
 	}
 
-	numChunks := countChunks(db, ts.uid)
-	Initialize(ts.uid, avatarScore.TScoreTotal, avatarScore.TScoreBalance, avatarScore.TScoreTime, avatarScore.Name, numChunks)
+	Initialize(ts.uid, avatarScore.TScoreTotal, avatarScore.TScoreBalance, avatarScore.TScoreTime, avatarScore.Name, len(avatarScore.Territory))
 }
 
 func saveToSQL(db *mgo.Database, ts *territoryScore) {
@@ -277,22 +278,10 @@ func saveToSQL(db *mgo.Database, ts *territoryScore) {
 	avatarScore.TScoreBalance = ts.ScoreBalance
 	avatarScore.TScoreTime = uint32(ts.TimeStamp.Unix())
 	c := db.C("avatars")
-	err := c.UpdateId(ts.uid, avatarScore)
+	err := c.UpdateId(ts.uid, bson.M{"$set": avatarScore})
 	ts.modified = false
 	if err != nil {
 		log.Println(err)
 		return
 	}
-}
-
-// Count the number of chunks this player has
-func countChunks(db *mgo.Database, uid uint32) int {
-	query := db.C("chunkdata").Find(bson.M{"avatarID": uid})
-	numRows, err := query.Count()
-	if err != nil {
-		log.Println(err)
-		return ConfigHandicapLimit
-	}
-
-	return int(numRows)
 }

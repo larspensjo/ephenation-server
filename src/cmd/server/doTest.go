@@ -174,7 +174,7 @@ func DoTestMonsterSpawnAndPurge_WLuWLqBlWLwWLaWLmWLc() {
 	up.CmdLogin_WLwWLuWLqBlWLc("test0")                                                                              // login name is an email, but don't care for this test.
 	DoTestCheck("DoTestMonsterSpawnAndPurge: request password", !conn.TestCommandSeen(client_prot.CMD_REQ_PASSWORD)) // No password for test users
 	DoTestCheck("DoTestMonsterSpawnAndPurge: login ack", conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
-	DoTestCheck("DoTestMonsterSpawnAndPurge: expect no uid", up.pl.Id == 0)
+	DoTestCheck("DoTestMonsterSpawnAndPurge: expect no uid", up.Id == 0)
 	// fmt.Printf("%#v\n", up)
 	for i := 0; i < MonsterLimitForRespawn; i++ {
 		addMonsterToPlayer_WLwWLuWLqWLmWLc(up)
@@ -354,8 +354,8 @@ func DoTestActivatorConditions() {
 	var up user
 	var ac *user_coord
 	up.conn = MakeDummyConn()
-	up.pl.Level = 9
-	up.pl.AdminLevel = 5
+	up.Level = 9
+	up.AdminLevel = 5
 	inhibit, terminate, _ := up.ActivatorMessage_WLuWLqWLmWLc("X", ac, nil, 0)
 	DoTestCheck("DoTestActivatorConditions default inhibit", inhibit == -1 && terminate == false)
 	_, terminate, _ = up.ActivatorMessage_WLuWLqWLmWLc("/level<10 X", ac, nil, 0)
@@ -456,7 +456,7 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 	_, ok = allPlayerIdMap[OWNER_TEST]
 	DoTestCheck("DoTestPlayerManagement uid assoc", ok == true)
 
-	pl := &up.pl
+	pl := &up.player
 	DoTestCheck("DoTestPlayerManagement test0 starting point x", pl.Coord.X == 0)
 	DoTestCheck("DoTestPlayerManagement test0 starting point y", pl.Coord.Y == 0)
 	DoTestCheck("DoTestPlayerManagement test0 starting point z", pl.Coord.Z >= 0)
@@ -530,7 +530,7 @@ func DoTestCombat_WLuBl() {
 	var u user
 	var m monster
 
-	u.pl.Level = 0
+	u.Level = 0
 	conn := MakeDummyConn()
 	u.conn = conn
 	// Test damage from a level 0 player on a monster of various levels.
@@ -542,7 +542,7 @@ func DoTestCombat_WLuBl() {
 		}
 		m.Level = uint32(lvl)
 		m.HitPoints = 1
-		u.pl.HitPoints = 1
+		u.HitPoints = 1
 		m.Hit_WLuBl(&u, 1)
 		// fmt.Printf("DoTestCombat %v, new hp: %v\n", lvl, m.HitPoints)
 		DoTestCheck("DoTestCombat_WLu No damage on high level monster", m.HitPoints > 0.99)
@@ -558,47 +558,47 @@ func DoTestFriends_WLaWLwWLuWLqBlWLc() {
 	DoTestCheck("DoTestFriends: create one player", numPlayers == 1 && index == 0)
 	up := allPlayers[index]
 	up.CmdLogin_WLwWLuWLqBlWLc(name) // login name is an email, but don't care for this test.
-	DoTestCheck("DoTestFriends: Empty listener list", len(up.pl.Listeners) == 0)
+	DoTestCheck("DoTestFriends: Empty listener list", len(up.Listeners) == 0)
 	DoTestCheck("DoTestFriends: login ack", conn.TestCommandSeen(client_prot.CMD_LOGIN_ACK))
 	const (
 		ID1 = 1
 		ID2 = 2
 	)
 	var up2 user // Create a new user, that will create friends
-	up2.pl.Id = ID1
+	up2.Id = ID1
 	notFound, alreadyIn := up2.AddToListener_RLaWLu(name)
 	// fmt.Printf("notFound %v, alreadyIn %v\n", notFound, alreadyIn)
 	DoTestCheck("DoTestFriends: AddToListener success", notFound == false && alreadyIn == false)
-	DoTestCheck("DoTestFriends: One entry listener list", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID1)
+	DoTestCheck("DoTestFriends: One entry listener list", len(up.Listeners) == 1 && up.Listeners[0] == ID1)
 
 	notFound, alreadyIn = up2.AddToListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: AddToListener duplicate", notFound == false && alreadyIn == true)
-	DoTestCheck("DoTestFriends: One entry listener list again", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID1)
+	DoTestCheck("DoTestFriends: One entry listener list again", len(up.Listeners) == 1 && up.Listeners[0] == ID1)
 
-	up2.pl.Id = ID2 // Now test with the next ID
+	up2.Id = ID2 // Now test with the next ID
 	notFound, alreadyIn = up2.AddToListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: AddToListener ID2 success", notFound == false && alreadyIn == false)
-	DoTestCheck("DoTestFriends: Two entries listener list", len(up.pl.Listeners) == 2 && up.pl.Listeners[1] == ID2)
+	DoTestCheck("DoTestFriends: Two entries listener list", len(up.Listeners) == 2 && up.Listeners[1] == ID2)
 
 	notFound, notIn := up2.RemoveFromListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: RemoveFromListener ID2 success", notFound == false && notIn == false)
-	DoTestCheck("DoTestFriends: One entry listener list after removal", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID1)
+	DoTestCheck("DoTestFriends: One entry listener list after removal", len(up.Listeners) == 1 && up.Listeners[0] == ID1)
 
 	// Add ID2 back to the list again.
 	notFound, alreadyIn = up2.AddToListener_RLaWLu(name)
-	DoTestCheck("DoTestFriends: Two entries listener list", len(up.pl.Listeners) == 2 && up.pl.Listeners[1] == ID2)
+	DoTestCheck("DoTestFriends: Two entries listener list", len(up.Listeners) == 2 && up.Listeners[1] == ID2)
 
 	// Remove ID1 this time
-	up2.pl.Id = ID1
+	up2.Id = ID1
 	notFound, notIn = up2.RemoveFromListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: RemoveFromListener ID1 success", notFound == false && notIn == false)
-	DoTestCheck("DoTestFriends: One entry listener list after removal", len(up.pl.Listeners) == 1 && up.pl.Listeners[0] == ID2)
+	DoTestCheck("DoTestFriends: One entry listener list after removal", len(up.Listeners) == 1 && up.Listeners[0] == ID2)
 
 	// Remove ID2, which is now the only one
-	up2.pl.Id = ID2
+	up2.Id = ID2
 	notFound, notIn = up2.RemoveFromListener_RLaWLu(name)
 	DoTestCheck("DoTestFriends: RemoveFromListener ID2 success again", notFound == false && notIn == false)
-	DoTestCheck("DoTestFriends: Empty listener list after clean-up", len(up.pl.Listeners) == 0)
+	DoTestCheck("DoTestFriends: Empty listener list after clean-up", len(up.Listeners) == 0)
 
 	// Remove ID2 again, which shall fail
 	notFound, notIn = up2.RemoveFromListener_RLaWLu(name)

@@ -40,12 +40,12 @@ import (
 func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 	str := strings.TrimRight(string(buff), " ") // Remove trailing spaces, if any
 	if *verboseFlag > 1 {
-		log.Printf("User %v cmd: '%v'\n", up.pl.Name, str)
+		log.Printf("User %v cmd: '%v'\n", up.Name, str)
 	}
 	message := strings.SplitN(str, " ", 2)
 	switch message[0] {
 	case "/keys":
-		for _, key := range up.pl.Keys {
+		for _, key := range up.Keys {
 			up.Printf_Bl("!%s(%d), uid %d", key.Descr, key.Kid, key.Uid)
 		}
 	case "/activator":
@@ -56,20 +56,20 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 	case "/home":
 		if len(message) == 1 {
 			up.Lock()
-			up.pl.Coord = up.pl.HomeSP
+			up.Coord = up.HomeSP
 			up.updatedStats = true
 			up.Unlock()
 		}
 	case "/sethome":
-		cc := up.pl.Coord.GetChunkCoord()
+		cc := up.Coord.GetChunkCoord()
 		cp := ChunkFind_WLwWLc(cc)
-		if cp.owner != up.pl.Id {
+		if cp.owner != up.Id {
 			up.Printf_Bl("#FAIL Not your territory")
 			break
 		}
 		if len(message) == 1 {
 			up.Lock()
-			up.pl.HomeSP = up.pl.Coord
+			up.HomeSP = up.Coord
 			up.Unlock()
 			up.Printf_Bl("Home spawn point updated!")
 		}
@@ -79,30 +79,30 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 		}
 		up.TerritoryCommand_WLwWLcBl(strings.Split(message[1], " "))
 	case "/revive":
-		if len(message) == 1 && up.pl.Dead {
+		if len(message) == 1 && up.Dead {
 			up.Lock()
-			up.pl.Dead = false
-			up.pl.HitPoints = 0.3
+			up.Dead = false
+			up.HitPoints = 0.3
 			up.updatedStats = true
-			up.pl.Coord = up.pl.ReviveSP
+			up.Coord = up.ReviveSP
 			up.Unlock()
 		}
 	case "/level":
-		if (up.pl.AdminLevel >= 8 || *allowTestUser) && len(message) == 2 {
+		if (up.AdminLevel >= 8 || *allowTestUser) && len(message) == 2 {
 			lvl, err := strconv.ParseUint(message[1], 10, 0)
 			if err != nil {
 				up.Printf_Bl("%s", err)
 			} else {
-				up.pl.Level = uint32(lvl)
+				up.Level = uint32(lvl)
 				up.updatedStats = true
 			}
 		}
 	case "/timers":
-		if up.pl.AdminLevel >= 2 || *allowTestUser {
+		if up.AdminLevel >= 2 || *allowTestUser {
 			timerstats.Report(up)
 		}
 	case "/panic":
-		if up.pl.AdminLevel >= 8 || *allowTestUser {
+		if up.AdminLevel >= 8 || *allowTestUser {
 			log.Panic("client_prot.DEBUG command 'panic'")
 		}
 	case "/status":
@@ -122,23 +122,23 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 	case "/players":
 		up.ReportPlayers()
 	case "/flying":
-		up.pl.Flying = !up.pl.Flying
-		up.pl.Climbing = false // Always turn off climbing
-		up.Printf_Bl("Flying: %v", up.pl.Flying)
+		up.Flying = !up.Flying
+		up.Climbing = false // Always turn off climbing
+		up.Printf_Bl("Flying: %v", up.Flying)
 	case "/inv":
 		fallthrough
 	case "/inventory":
-		if len(message) == 2 && up.pl.AdminLevel > 8 {
+		if len(message) == 2 && up.AdminLevel > 8 {
 			code := ObjectCode(message[1])
 			_, ok := objectUseTable[code]
 			if message[1] == "clear" {
-				up.pl.Inventory.Clear() // There is no update message generated, so client won't know.
-				up.pl.WeaponGrade = 0
-				up.pl.ArmorGrade = 0
-				up.pl.HelmetGrade = 0
-				up.pl.WeaponLvl = 0
-				up.pl.ArmorLvl = 0
-				up.pl.HelmetLvl = 0
+				up.Inventory.Clear() // There is no update message generated, so client won't know.
+				up.WeaponGrade = 0
+				up.ArmorGrade = 0
+				up.HelmetGrade = 0
+				up.WeaponLvl = 0
+				up.ArmorLvl = 0
+				up.HelmetLvl = 0
 			} else if !ok {
 				up.Printf_Bl("!Available objects:")
 				for key, _ := range objectUseTable {
@@ -148,11 +148,11 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 				AddOneObjectToUser_WLuBl(up, code)
 			}
 		} else {
-			up.pl.Inventory.Report(up)
+			up.Inventory.Report(up)
 			up.Printf_Bl("!Equip modifiers: armor %.0f%%, helmet %.0f%%, weapon %.0f%%",
-				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorGrade)-1)*100,
-				(ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetGrade)-1)*100,
-				(WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponGrade)-1)*100)
+				(ArmorLevelDiffMultiplier(up.Level, up.ArmorLvl, up.ArmorGrade)-1)*100,
+				(ArmorLevelDiffMultiplier(up.Level, up.HelmetLvl, up.HelmetGrade)-1)*100,
+				(WeaponLevelDiffMultiplier(up.Level, up.WeaponLvl, up.WeaponGrade)-1)*100)
 		}
 	case "/GC":
 		var m runtime.MemStats
@@ -160,7 +160,7 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 		up.Printf_Bl("GC next: %v, num: %v, paus total: %v", m.NextGC, m.NumGC, m.PauseTotalNs)
 		// runtime.GC()
 	case "/shutdown":
-		if up.pl.AdminLevel >= 8 {
+		if up.AdminLevel >= 8 {
 			if *cpuprofile != "" {
 				pprof.StopCPUProfile()
 			}
@@ -172,13 +172,13 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 			up.Printf_Bl("!%s", str)
 		}
 	case "/resetpos":
-		up.pl.Coord.X = 0
-		up.pl.Coord.Y = 0
-		up.pl.Coord.Z = FLOATING_ISLANDS_LIM - PlayerHeight // As high as possible
-		up.pl.Flying = false
-		up.pl.Climbing = false
+		up.Coord.X = 0
+		up.Coord.Y = 0
+		up.Coord.Z = FLOATING_ISLANDS_LIM - PlayerHeight // As high as possible
+		up.Flying = false
+		up.Climbing = false
 	case "/prof":
-		if up.pl.AdminLevel >= 8 || *allowTestUser {
+		if up.AdminLevel >= 8 || *allowTestUser {
 			const fn = "profdata.tmp"
 			f, _ := os.OpenFile(fn, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 			pprof.WriteHeapProfile(f)
@@ -200,7 +200,7 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 				continue // Found self
 			}
 			// Tell 'other' that we moved
-			other.Printf("%s says: %s", up.pl.Name, message[1])
+			other.Printf("%s says: %s", up.Name, message[1])
 			n++
 		}
 		if n == 0 {
@@ -234,13 +234,13 @@ func (up *user) TargetCommand(msg []string) {
 	}
 	switch msg[0] {
 	case "set":
-		up.pl.TargetCoor = up.pl.Coord
+		up.TargetCoor = up.Coord
 		return
 	case "show":
-		up.Printf_Bl("Current target: %v", up.pl.TargetCoor)
+		up.Printf_Bl("Current target: %v", up.TargetCoor)
 		return
 	case "reset":
-		up.pl.TargetCoor = user_coord{0, 0, 0}
+		up.TargetCoor = user_coord{0, 0, 0}
 	}
 }
 
@@ -250,26 +250,26 @@ func (up *user) TerritoryCommand_WLwWLcBl(msg []string) {
 	}
 	switch msg[0] {
 	case "show":
-		up.Printf_Bl("Territory (%d of %d): %v", len(up.pl.Territory), up.pl.Maxchunks, up.pl.Territory)
-		if up.pl.AdminLevel > 0 {
-			cc := up.pl.Coord.GetChunkCoord()
+		up.Printf_Bl("Territory (%d of %d): %v", len(up.Territory), up.Maxchunks, up.Territory)
+		if up.AdminLevel > 0 {
+			cc := up.Coord.GetChunkCoord()
 			cp := ChunkFind_WLwWLc(cc)
 			up.Printf_Bl("adm: This place: %d", cp.owner)
 		}
 	case "claim":
 		up.TerritoryClaim_WLwWLc(msg[1:])
 	case "grant":
-		if up.pl.AdminLevel < 5 || len(msg) != 2 {
+		if up.AdminLevel < 5 || len(msg) != 2 {
 			up.Printf_Bl("#FAIL")
 			return
 		}
 		up.TerritoryGrant(msg[1])
 	case "revert":
-		if up.pl.AdminLevel < 10 {
+		if up.AdminLevel < 10 {
 			up.Printf_Bl("#FAIL")
 			return
 		}
-		cc := up.pl.Coord.GetChunkCoord()
+		cc := up.Coord.GetChunkCoord()
 		cp := ChunkFind_WLwWLc(cc)
 		if cp.owner != OWNER_NONE && cp.owner != OWNER_RESERVED {
 			up.Printf_Bl("#FAIL Can't revert when owner is %d", cp.owner)
@@ -288,7 +288,7 @@ func (up *user) TerritoryCommand_WLwWLcBl(msg []string) {
 }
 
 func (up *user) TerritoryGrant(arg string) {
-	cc := up.pl.Coord.GetChunkCoord()
+	cc := up.Coord.GetChunkCoord()
 	cp := ChunkFind_WLwWLc(cc)
 	newOwner, err := strconv.ParseInt(arg, 10, 64)
 	if err != nil {
@@ -302,15 +302,15 @@ func (up *user) TerritoryGrant(arg string) {
 
 func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	const usage = "Usage: /territory claim [up/down]"
-	if up.pl.AdminLevel < 1 && len(up.pl.Territory) >= up.pl.Maxchunks {
-		up.Printf_Bl("#FAIL !You are not allowed more chunks than %d", up.pl.Maxchunks)
+	if up.AdminLevel < 1 && len(up.Territory) >= up.Maxchunks {
+		up.Printf_Bl("#FAIL !You are not allowed more chunks than %d", up.Maxchunks)
 		return
 	}
-	if *allowTestUser && NameIsTestPlayer(up.pl.Name) {
+	if *allowTestUser && NameIsTestPlayer(up.Name) {
 		up.Printf_Bl("#FAIL !Test players can't claim territory")
 		return
 	}
-	if MonsterDifficulty(&up.pl.Coord) > up.pl.Level && up.pl.AdminLevel == 0 {
+	if MonsterDifficulty(&up.Coord) > up.Level && up.AdminLevel == 0 {
 		up.Printf_Bl("#FAIL !You are too low level for this area")
 		return
 	}
@@ -318,7 +318,7 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 		up.Printf_Bl(usage)
 		return
 	}
-	cc := up.pl.Coord.GetChunkCoord()
+	cc := up.Coord.GetChunkCoord()
 	if len(arg) > 0 {
 		switch arg[0] {
 		case "up":
@@ -347,10 +347,10 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	}
 
 	// Make sure either it is the first chunk, or an adjacent chunk is already allocated, or the request will be denied.
-	approved := len(up.pl.Territory) == 0 || up.pl.AdminLevel > 0
+	approved := len(up.Territory) == 0 || up.AdminLevel > 0
 	adjacent := dBGetAdjacentChunks(&cc)
 	for _, cp := range adjacent {
-		if cp.owner == up.pl.Id {
+		if cp.owner == up.Id {
 			approved = true
 			break
 		}
@@ -362,23 +362,23 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 
 	// All tests are approved, allocate the chunk
 	ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y, cc.Z})
-	cp.owner = up.pl.Id
+	cp.owner = up.Id
 	cp.flag |= CHF_MODIFIED
 	cp.Write()
 	cp.Unlock()
 	up.Printf_Bl("!Congratulations, you now own chunk %v", cc)
-	if up.pl.Territory == nil {
-		up.pl.Territory = []chunkdb.CC{cc}
+	if up.Territory == nil {
+		up.Territory = []chunkdb.CC{cc}
 	} else {
-		for _, chunk := range up.pl.Territory {
+		for _, chunk := range up.Territory {
 			if chunk.X == cc.X && chunk.Y == cc.Y && chunk.Z == cc.Z {
-				log.Printf("Chunk %v allocated to user %d (%s), but was already in DB list\n", cc, up.pl.Id, up.pl.Name)
+				log.Printf("Chunk %v allocated to user %d (%s), but was already in DB list\n", cc, up.Id, up.Name)
 				return
 			}
 		}
-		up.pl.Territory = append(up.pl.Territory, cc)
+		up.Territory = append(up.Territory, cc)
 	}
-	up.pl.Save_Bl()
+	up.Save_Bl()
 }
 
 func (up *user) TellOthers_RLaBl(arg string) {
@@ -395,14 +395,14 @@ func (up *user) TellOthers_RLaBl(arg string) {
 	if !ok {
 		up.Printf_Bl("#FAIL No player %v logged in", name)
 	} else {
-		other.Printf("%v tells you: %s", up.pl.Name, message[1])
+		other.Printf("%v tells you: %s", up.Name, message[1])
 		up.Printf_Bl("You tell %v: %s", name, message[1])
 	}
 }
 
 // Handle all commands starting with /friend
 func (up *user) FriendCommand_RLaWLu(arg string) {
-	if up.pl.Id == OWNER_TEST {
+	if up.Id == OWNER_TEST {
 		// Test players can't define friends
 		return
 	}
@@ -414,7 +414,7 @@ func (up *user) FriendCommand_RLaWLu(arg string) {
 			return
 		}
 		name := cmd[1]
-		if up.pl.Name == name {
+		if up.Name == name {
 			up.Printf_Bl("#FAIL !Can't add self")
 			return
 		}
@@ -454,7 +454,7 @@ func (up *user) ActivatorControl(msg string) {
 	cmd := strings.SplitN(string(msg), " ", 2)
 	switch cmd[0] {
 	case "show":
-		cc := up.pl.Coord.GetChunkCoord()
+		cc := up.Coord.GetChunkCoord()
 		cp := ChunkFind_WLwWLc(cc)
 		for _, tr := range cp.blTriggers {
 			up.Printf_Bl("!Trigger: %v", tr)
@@ -518,13 +518,13 @@ func (up *user) ReportPlayers() {
 	for _, p := range allPlayerIdMap {
 		switch p.connState {
 		case PlayerConnStateLogin:
-			up.Printf_Bl("!%v state login", p.pl.Name)
+			up.Printf_Bl("!%v state login", p.Name)
 		case PlayerConnStatePass:
-			up.Printf_Bl("!%v state password", p.pl.Name)
+			up.Printf_Bl("!%v state password", p.Name)
 		case PlayerConnStateIn:
-			up.Printf_Bl("!%v level %d at chunk %v", p.pl.Name, p.pl.Level, p.pl.Coord.GetChunkCoord())
+			up.Printf_Bl("!%v level %d at chunk %v", p.Name, p.Level, p.Coord.GetChunkCoord())
 		default:
-			up.Printf_Bl("!%v (unknown state)", p.pl.Name)
+			up.Printf_Bl("!%v (unknown state)", p.Name)
 		}
 	}
 	allPlayersSem.RUnlock()

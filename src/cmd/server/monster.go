@@ -202,7 +202,7 @@ func UpdateAllMonstersState() {
 				break
 			}
 			up.RLock()
-			if up.connState != PlayerConnStateIn || up.pl.Dead {
+			if up.connState != PlayerConnStateIn || up.Dead {
 				mp.aggro = nil
 				// The player disappeared, lower speed to walk
 				mp.speed = WALKING_FACTOR * mp.maxSpeed
@@ -210,7 +210,7 @@ func UpdateAllMonstersState() {
 			} else {
 				var dist2 float64
 				// TODO: Check if turned in the right direction
-				tempDirHor, dist2 := mp.ComputeDir(&up.pl)
+				tempDirHor, dist2 := mp.ComputeDir(&up.player)
 				mp.dirHor = tempDirHor
 
 				/*
@@ -232,13 +232,13 @@ func UpdateAllMonstersState() {
 					fmt.Printf("Monster %v heading %v\n", mp.id, mp.dirHor);
 				*/
 
-				//fmt.Printf("Monster %v: Fatigue:%v Aggro:%v\n", mp.id, mp.fatigue, mp.aggro.pl.Name); // DEBUG
+				//fmt.Printf("Monster %v: Fatigue:%v Aggro:%v\n", mp.id, mp.fatigue, mp.aggro.Name); // DEBUG
 				// Since the function is called every MonstersUpdateDirPeriod ns (currently once per second), update the fatigue accordingly
 				// Target for this is 15 secs for a "normal" attack, i.e. an animal with 100% percistance
 				mp.fatigue -= mp.persistence / (15e9 / MonstersUpdateDirPeriod)
 
 				if mp.fatigue <= 0.0 {
-					// fmt.Printf("Monster %v: Abort attack on:%v\n", mp.id, mp.aggro.pl.Name); // DEBUG
+					// fmt.Printf("Monster %v: Abort attack on:%v\n", mp.id, mp.aggro.Name); // DEBUG
 					mp.aggro = nil // Abort attack after this sequence
 					mp.fatigue = 0.0
 					mp.state = MD_RECOVERING
@@ -313,11 +313,11 @@ func UpdateAllMonstersTarget_RLmRLq() {
 		//#fmt.Printf("M:%d Aggro task\n",mp.id)
 		for _, o := range nearObjects {
 			up, ok := o.(*user)
-			if !ok || up.pl.Dead {
+			if !ok || up.Dead {
 				continue // Only aggro on alive players
 			}
 			// Aggro on first near player found. TODO: Do something more sophisticated
-			dir, dist2 := mp.ComputeDir(&up.pl)
+			dir, dist2 := mp.ComputeDir(&up.player)
 			deltaDir := math.Abs(float64(dir - mp.dirHor))
 			if deltaDir > math.Pi {
 				deltaDir = math.Abs(deltaDir - 2*math.Pi)
@@ -326,11 +326,11 @@ func UpdateAllMonstersTarget_RLmRLq() {
 			if dist2 < CnfgMonsterAggroDistance*CnfgMonsterAggroDistance {
 				// TODO: This test is needed because of a problem with playerQuadtree.FindNearObjects not
 				// taking into account the z axis.
-				if up.pl.Level > mp.Level+3 || mp.Level < COMB_AggresiveLevelStart {
+				if up.Level > mp.Level+3 || mp.Level < COMB_AggresiveLevelStart {
 					// The player is too high level. Simply turn the monster in the direction of the player,
 					// but don't set aggro, and don't move it. That way, it will seem as if the monster now
 					// and then is staring at the player.
-					//#fmt.Printf("Level too high? M:%d P:%d\n", mp.Level, up.pl.Level)
+					//#fmt.Printf("Level too high? M:%d P:%d\n", mp.Level, up.Level)
 					mp.dirHor = dir
 					mp.mvFwd = false
 				} else if deltaDir < CnfgMonsterFieldOfView { // Make sure that the monster can "see" the player
@@ -384,13 +384,13 @@ func CmdMonsterMelee_RLm() {
 		if up == nil || mp.dead {
 			continue
 		}
-		if up.connState != PlayerConnStateIn || up.pl.Dead {
+		if up.connState != PlayerConnStateIn || up.Dead {
 			mp.aggro = nil
 			continue
 		}
-		dx := up.pl.Coord.X - mp.Coord.X
-		dy := up.pl.Coord.Y - mp.Coord.Y
-		dz := up.pl.Coord.Z - mp.Coord.Z
+		dx := up.Coord.X - mp.Coord.X
+		dy := up.Coord.Y - mp.Coord.Y
+		dz := up.Coord.Z - mp.Coord.Z
 		dist := dx*dx + dy*dy + dz*dz // Skip the square root
 		if dist > CnfgMeleeDistLimit*CnfgMeleeDistLimit {
 			if dist > CnfgMonsterAggroDistance*CnfgMonsterAggroDistance {
@@ -476,7 +476,7 @@ func addMonsterToPlayer_WLwWLuWLqWLmWLc(up *user) {
 	if up.connState != PlayerConnStateIn {
 		return
 	}
-	coord := up.pl.Coord
+	coord := up.Coord
 	pos := &TwoF{coord.X, coord.Y}
 	// Do not create too many monsters near this player.
 	if CountNearMonsters_RLq(pos) >= MonsterLimitForRespawn {
@@ -557,7 +557,7 @@ func addMonsterToPlayerAtPos_WLuWLqWLm(up *user, coord *user_coord, deltaLevel i
 	// Find all near players (will be at least one), and tell them about the new monster.
 	pos := &TwoF{m.Coord.X, m.Coord.Y}
 	near := playerQuadtree.FindNearObjects_RLq(pos, client_prot.NEAR_OBJECTS)
-	// fmt.Printf("Near objects to new player at %v: %v\n", up.pl.Coord, near)
+	// fmt.Printf("Near objects to new player at %v: %v\n", up.Coord, near)
 	for _, o := range near {
 		up, ok := o.(*user)
 		if !ok {
@@ -634,7 +634,7 @@ func UpdateAllMonsterPos_RLmWLwWLqWLuWLc(fullReport bool) {
 			m.updatedStats = false
 			// Find near players and tell them 'm' has moved
 			near := playerQuadtree.FindNearObjects_RLq(m.GetPreviousPos(), client_prot.NEAR_OBJECTS)
-			// fmt.Printf("Near objects to %v: %v\n", up.pl.Coord, near)
+			// fmt.Printf("Near objects to %v: %v\n", up.Coord, near)
 			// fmt.Println("ClientUpdatePlayerPosCommand OCTREE: ", playerQuadtree)
 			for _, o := range near {
 				if other, ok := o.(*user); ok {

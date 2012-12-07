@@ -33,7 +33,7 @@ func SaveAllPlayers_RLa() {
 	allPlayersSem.RLock()
 	for i := 0; i < MAX_PLAYERS; i++ {
 		up := allPlayers[i]
-		if up != nil && up.pl.Email != "" && up.connState == PlayerConnStateIn {
+		if up != nil && up.Email != "" && up.connState == PlayerConnStateIn {
 			up.forceSave = true
 		}
 		// up.Printf("Autosave");
@@ -61,7 +61,7 @@ func (up *user) writeNonBlocking(b []byte) {
 		panic("Wrong length of message")
 	}
 	if *verboseFlag > 2 {
-		log.Printf("Non blocking Send to %v '%v'\n", up.pl.Name, b)
+		log.Printf("Non blocking Send to %v '%v'\n", up.Name, b)
 	}
 	select {
 	case up.channel <- b:
@@ -117,7 +117,7 @@ func ReportOneInventoryItem_WluBl(up *user, code ObjectCode, lvl uint32) {
 	// b[7] = 0 // Default count is 0
 	EncodeUint32(lvl, b[8:12])
 	up.RLock()
-	inv := up.pl.Inventory
+	inv := up.Inventory
 	i := inv.Find(code, lvl)
 	if i >= 0 {
 		count := inv[i].Count
@@ -136,8 +136,8 @@ func ReportOneInventoryItem_WluBl(up *user, code ObjectCode, lvl uint32) {
 // to the current position.
 func AddOneObjectToUser_WLuBl(up *user, Type ObjectCode) {
 	up.Lock()
-	level := MonsterDifficulty(&up.pl.Coord) // We want an object of a level corresponding to the monsters at this place.
-	up.pl.Inventory.AddOneObject(Type, level)
+	level := MonsterDifficulty(&up.Coord) // We want an object of a level corresponding to the monsters at this place.
+	up.Inventory.AddOneObject(Type, level)
 	up.Unlock()
 	ReportOneInventoryItem_WluBl(up, Type, level)
 }

@@ -75,10 +75,10 @@ func MonsterVsPlayerFactor(level uint32) float32 {
 // The player is hit by a monster with the attributes as specified by the arguments
 func (up *user) Hit(monster uint32, level uint32, weaponDmg float32, weaponLvl uint32) {
 	dmg := weaponDmg *
-		PlayerLevelDiffMultiplier(up.pl.Level, level) *
+		PlayerLevelDiffMultiplier(up.Level, level) *
 		WeaponLevelDiffMultiplier(level, weaponLvl, 1) /
-		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.ArmorLvl, up.pl.ArmorGrade) /
-		ArmorLevelDiffMultiplier(up.pl.Level, up.pl.HelmetLvl, up.pl.HelmetGrade) /
+		ArmorLevelDiffMultiplier(up.Level, up.ArmorLvl, up.ArmorGrade) /
+		ArmorLevelDiffMultiplier(up.Level, up.HelmetLvl, up.HelmetGrade) /
 		MonsterVsPlayerFactor(level)
 	if dmg > 1 {
 		dmg = 1
@@ -87,18 +87,18 @@ func (up *user) Hit(monster uint32, level uint32, weaponDmg float32, weaponLvl u
 	// This shouldn't be updated in the current process
 	f := func(up *user) {
 		up.Lock()
-		up.pl.HitPoints -= dmg
+		up.HitPoints -= dmg
 		up.updatedStats = true // This leads to a message being generated.
-		if up.pl.HitPoints <= 0 {
-			up.pl.HitPoints = 0
-			up.pl.Dead = true
+		if up.HitPoints <= 0 {
+			up.HitPoints = 0
+			up.Dead = true
 			up.Unlock() // Must unlock before calling a function that can block
 		} else {
 			up.Unlock()
 		}
-		cp := ChunkFindCached_WLwWLc(up.pl.Coord.GetChunkCoord())
+		cp := ChunkFindCached_WLwWLc(up.Coord.GetChunkCoord())
 		owner := cp.owner
-		if owner != up.pl.Id && owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST {
+		if owner != up.Id && owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST {
 			up.AddScore(owner, float64(dmg)*CnfgScoreDamageFact)
 		}
 		var b [8]byte
@@ -114,22 +114,22 @@ func (up *user) Hit(monster uint32, level uint32, weaponDmg float32, weaponLvl u
 
 // The monster is hit by a player with the attributes as specified by the arguments
 func (mp *monster) Hit_WLuBl(up *user, weaponDmg float32) {
-	dmg := weaponDmg * PlayerLevelDiffMultiplier(mp.Level, up.pl.Level) * WeaponLevelDiffMultiplier(up.pl.Level, up.pl.WeaponLvl, up.pl.WeaponGrade) * MonsterVsPlayerFactor(mp.Level)
+	dmg := weaponDmg * PlayerLevelDiffMultiplier(mp.Level, up.Level) * WeaponLevelDiffMultiplier(up.Level, up.WeaponLvl, up.WeaponGrade) * MonsterVsPlayerFactor(mp.Level)
 	if dmg > 1 {
 		dmg = 1
 	}
 	mp.HitPoints -= dmg
 	mp.updatedStats = true
 	if mp.HitPoints <= 0 {
-		pLevel := up.pl.Level
+		pLevel := up.Level
 		mp.HitPoints = 0
 		mp.dead = true
 		experience := ExperienceForKill(pLevel, mp.Level)
 		up.Lock()
 		up.flags &= ^client_prot.UserFlagInFight
-		up.pl.NumKill++
+		up.NumKill++
 		// Give more experience to low level players
-		switch up.pl.Level {
+		switch up.Level {
 		case 0:
 			experience *= 5
 		case 1:

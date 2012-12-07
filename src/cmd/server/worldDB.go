@@ -196,7 +196,7 @@ func (coord user_coord) CallNearPlayers_RLq(cmd ClientCommand, exclude *user) {
 			// This player shall be excluded from the list
 			continue
 		}
-		if other.pl.Coord.Z > coord.Z+client_prot.NEAR_OBJECTS || other.pl.Coord.Z < coord.Z-client_prot.NEAR_OBJECTS {
+		if other.Coord.Z > coord.Z+client_prot.NEAR_OBJECTS || other.Coord.Z < coord.Z-client_prot.NEAR_OBJECTS {
 			// The quad tree doesn't check for nearness in z dimension
 			continue
 		}
@@ -671,21 +671,21 @@ func dBGetAdjacentChunks(cc *chunkdb.CC) []*chunk {
 
 // Set a teleport in the specified chunk.
 func (cp *chunk) SetTeleport(cc chunkdb.CC, up *user, x, y, z uint8) {
-	if cp == nil || (cp.owner != up.pl.Id && up.pl.AdminLevel == 0) {
+	if cp == nil || (cp.owner != up.Id && up.AdminLevel == 0) {
 		up.Printf_Bl("#FAIL")
 		return
 	}
 
 	// Count the number of teleports in other chunks that the player already has
 	numTeleports := 0
-	for _, terr := range up.pl.Territory {
+	for _, terr := range up.Territory {
 		_, _, _, found := superChunkManager.GetTeleport(&terr)
 		if found && terr != cc {
 			numTeleports++
 			// up.Printf_Bl("%v", terr)
 		}
 	}
-	if numTeleports > 0 && up.pl.AdminLevel == 0 {
+	if numTeleports > 0 && up.AdminLevel == 0 {
 		up.Printf_Bl("#FAIL You can only have one magical portal")
 		return
 	}
@@ -698,5 +698,5 @@ func (cp *chunk) SetTeleport(cc chunkdb.CC, up *user, x, y, z uint8) {
 		}
 		up.SendMessageBlockUpdate(cc, x, y, z, BT_Teleport)
 	}
-	up.pl.Coord.CallNearPlayers_RLq(f, nil)
+	up.Coord.CallNearPlayers_RLq(f, nil)
 }
