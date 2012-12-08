@@ -22,7 +22,7 @@
 
 // The counters collection of documents is used to povide unique IDs.
 db.counters.drop()
-db.counters.insert({_id: "avatarId", c: 0}) // A document to produce avatar IDs
+db.counters.insert({_id: "avatarId", c: 1}) // A document to produce avatar IDs. 0 is reserved.
 db.counters.insert({_id: "newsId", c: 0}) // A document to produce news IDs
 
 // Avatars: _id is used for the numerical avatar Id.

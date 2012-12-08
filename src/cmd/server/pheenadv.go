@@ -209,8 +209,7 @@ func CreateUser(str string) {
 		C uint32
 	}
 	change := mgo.Change{
-		Update:    bson.M{"$inc": bson.M{"c": 1}},
-		ReturnNew: true,
+		Update: bson.M{"$inc": bson.M{"c": 1}},
 	}
 	_, err := c.FindId("avatarId").Apply(change, &id)
 	if err != nil {
