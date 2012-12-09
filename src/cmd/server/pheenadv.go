@@ -19,12 +19,12 @@ package main
 
 import (
 	"chunkdb"
-	"encoding/json"
 	"ephenationdb"
 	"flag"
 	"fmt"
 	"github.com/robfig/goconfig/config"
 	"io/ioutil"
+	"license"
 	"log"
 	"math/rand"
 	"os"
@@ -204,7 +204,7 @@ func DumpSQL() {
 
 	// Build a query for the avatar name sent as an argument
 	// TODO: Assert that the avatar name is unique and on this server for the current user?
-	query := "SELECT name,jsonstring,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ FROM avatars"
+	query := "SELECT owner,name,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ FROM avatars"
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Println(err)
@@ -219,19 +219,20 @@ func DumpSQL() {
 	}
 
 	// Some helper variables
-	var packedline string
-	var uid uint32
+	var owner string
+	var uid, maxuid uint32
 	var packedInv []byte
 	var terrScore, terrScoreBalance float64
 	var terrScoreTimestamp uint32
 	// Booleans doesn't work
 	var flying, climbing, dead int
 	var pl player
-	stmt.BindResult(&pl.name, &packedline, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
+	stmt.BindResult(&owner, &pl.name, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
 		&pl.exp, &pl.hitPoints, &pl.mana, &pl.numKill, &pl.homeSP.X, &pl.homeSP.Y, &pl.homeSP.Z, &pl.reviveSP.X, &pl.reviveSP.Y, &pl.reviveSP.Z, &pl.maxchunks,
 		&pl.blockAdd, &pl.blockRem, &pl.timeOnline, &pl.head, &pl.body, &packedInv, &terrScore, &terrScoreBalance, &terrScoreTimestamp,
 		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z)
 
+	fmt.Println("use ephenation")
 	for {
 		eof, err := stmt.Fetch()
 		if err != nil {
@@ -240,6 +241,9 @@ func DumpSQL() {
 		}
 		if eof {
 			break
+		}
+		if uid > maxuid {
+			maxuid = uid
 		}
 		// Some post processing
 		if flying == 1 {
@@ -256,22 +260,17 @@ func DumpSQL() {
 			// This parameter was not initialized.
 			pl.maxchunks = CnfgMaxOwnChunk
 		}
-		DumpSQLPlayer(&pl, packedline, packedInv)
+		terr, ok := chunkdb.ReadAvatar_Bl(uint32(uid))
+		if ok {
+			pl.territory = terr
+		}
+		DumpSQLPlayer(uid, owner, &pl, packedInv)
 	}
+	fmt.Printf("db.counters.update({_id:'avatarId'},{c:%v})\n", maxuid+1)
 }
 
-func DumpSQLPlayer(pl *player, packedline string, packedInv []byte) {
-
-	// log.Println(pl.targetCoor)
-
-	pl.logonTimer = time.Now()
+func DumpSQLPlayer(uid uint32, email string, pl *player, packedInv []byte) {
 	var err error
-
-	if err = json.Unmarshal([]uint8(packedline), pl); err != nil {
-		log.Printf("Unmarshal player %s: %v (%v)\n", pl.name, err, packedline)
-		// TODO: This covers errors when updating the jsonstring, should be handled in a more approperiate way
-		//return 0, false
-	}
 
 	// If there was data in the inventory "blob", unpack it.
 	if len(packedInv) > 0 {
@@ -282,17 +281,79 @@ func DumpSQLPlayer(pl *player, packedline string, packedInv []byte) {
 		// Save what can be saved, and remove unknown objects.
 		pl.inventory.CleanUp()
 	}
-	if *verboseFlag > 1 {
-		log.Println("Inventory unpacked", pl.inventory)
+
+	lic := license.Load_Bl(email)
+	if lic == nil {
+		log.Println("Failed to load license for", email)
+		return
+	}
+	fmt.Printf("db.avatars.save({_id:%v, email:'%v', password:'%v', license:'%v',", uid, email, lic.Password, lic.License)
+	DumpUserData(email)
+	fmt.Printf("name:'%v', coord:{x:%v,y:%v,z:%v}, adminlevel:%v,", pl.name, pl.coord.X, pl.coord.Y, pl.coord.Z, pl.adminLevel)
+	fmt.Printf("weapongrade:%v, armorgrade:%v, helmetgrade:%v,", pl.WeaponType, pl.ArmorType, pl.HelmetType)
+	fmt.Printf("weaponlvl:%v, armorlvl:%v, helmetlvl:%v, level:%v,", pl.WeaponLvl, pl.ArmorLvl, pl.HelmetLvl, pl.level)
+	fmt.Printf("exp:%v, hitPoints:%v, mana:%v, numkill:%v, homesp:{x:%v,y:%v,z:%v}, territory:[", pl.exp, pl.hitPoints, pl.mana, pl.numKill, pl.homeSP.X, pl.homeSP.Y, pl.homeSP.Z)
+	for _, ch := range pl.territory {
+		fmt.Printf("{x:%v,y:%v,z:%v},", ch.X, ch.Y, ch.Z)
+	}
+	fmt.Printf("], maxchunks:%v, blockadd:%v, blockrem:%v, timeonline:%v})\n\n", pl.maxchunks, pl.blockAdd, pl.blockRem, pl.timeOnline)
+}
+
+func DumpUserData(email string) {
+	db := ephenationdb.New()
+	if db == nil {
+		return
+	}
+	// defer ephenationdb.Release(db)
+
+	query := "SELECT firstname,lastname,todelete,newlicense,validatekey,invitedby,isvalidated,recovery,locked,registered,lastseen,newsletter,administrator FROM users WHERE email='" + email + "'"
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Println(err)
+		return
 	}
 
-	//fmt.Printf("Coord: (%v,%v,%v)\n", pl.coord.X, pl.coord.Y, pl.coord.Z )
-
-	if pl.reviveSP.X == 0 && pl.reviveSP.Y == 0 && pl.reviveSP.Z == 0 {
-		// Check if there is any spawn point defined.
-		pl.reviveSP = pl.coord
-		pl.homeSP = pl.coord
+	// Execute statement
+	err = stmt.Execute()
+	if err != nil {
+		log.Println(err)
+		return
 	}
 
-	fmt.Printf("User: %#v\n", pl)
+	// Some helper variables
+	var firstname, lastname, validatekey, invitedby, registered, lastseen string
+	var todelete, newlicense, isvalidated, recovery, locked, newsletter, webadministrator int
+	stmt.BindResult(&firstname, &lastname, &todelete, &newlicense, &validatekey, &invitedby, &isvalidated, &recovery, &locked, &registered, &lastseen, &newsletter, &webadministrator)
+	eof, err := stmt.Fetch()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if eof {
+		return
+	}
+	fmt.Printf("firstname:'%v', lastname:'%v', validatekey:'%v',", firstname, lastname, validatekey)
+	fmt.Printf("invitedby:'%v', registered:%v,", invitedby, JSDateString(registered))
+	fmt.Printf("lastseen:%v, ", JSDateString(lastseen))
+	PrintBool("webadministrator", webadministrator)
+	PrintBool("newsletter", newsletter)
+	PrintBool("isvalidated", isvalidated)
+	PrintBool("recovery", recovery)
+	PrintBool("locked", locked)
+	PrintBool("todelete", todelete)
+	PrintBool("newlicense", newlicense)
+}
+
+func PrintBool(name string, value int) {
+	if value == 0 {
+		return
+	}
+	fmt.Printf("%s:true, ", name)
+}
+
+// Convert a date on the format "2012-12-31" to something that can be used in Javascript
+func JSDateString(date string) string {
+	var year, month, day int
+	fmt.Sscanf(date, "%d-%d-%d", &year, &month, &day)
+	return fmt.Sprintf("new Date(%d, %d, %d)", year, month-1, day)
 }
