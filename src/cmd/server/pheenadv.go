@@ -204,7 +204,7 @@ func DumpSQL() {
 
 	// Build a query for the avatar name sent as an argument
 	// TODO: Assert that the avatar name is unique and on this server for the current user?
-	query := "SELECT owner,name,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ FROM avatars"
+	query := "SELECT owner,name,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ,TScoreTotal FROM avatars"
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Println(err)
@@ -224,13 +224,14 @@ func DumpSQL() {
 	var packedInv []byte
 	var terrScore, terrScoreBalance float64
 	var terrScoreTimestamp uint32
+	var TScoreTotal float32
 	// Booleans doesn't work
 	var flying, climbing, dead int
 	var pl player
 	stmt.BindResult(&owner, &pl.name, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
 		&pl.exp, &pl.hitPoints, &pl.mana, &pl.numKill, &pl.homeSP.X, &pl.homeSP.Y, &pl.homeSP.Z, &pl.reviveSP.X, &pl.reviveSP.Y, &pl.reviveSP.Z, &pl.maxchunks,
 		&pl.blockAdd, &pl.blockRem, &pl.timeOnline, &pl.head, &pl.body, &packedInv, &terrScore, &terrScoreBalance, &terrScoreTimestamp,
-		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z)
+		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z, &TScoreTotal)
 
 	fmt.Println("use ephenation")
 	for {
@@ -264,12 +265,12 @@ func DumpSQL() {
 		if ok {
 			pl.territory = terr
 		}
-		DumpSQLPlayer(uid, owner, &pl, packedInv)
+		DumpSQLPlayer(uid, owner, &pl, packedInv, TScoreTotal)
 	}
 	fmt.Printf("db.counters.update({_id:'avatarId'},{c:%v})\n", maxuid+1)
 }
 
-func DumpSQLPlayer(uid uint32, email string, pl *player, packedInv []byte) {
+func DumpSQLPlayer(uid uint32, email string, pl *player, packedInv []byte, score float32) {
 	var err error
 
 	// If there was data in the inventory "blob", unpack it.
@@ -289,7 +290,7 @@ func DumpSQLPlayer(uid uint32, email string, pl *player, packedInv []byte) {
 	}
 	fmt.Printf("db.avatars.save({_id:%v, email:'%v', password:'%v', license:'%v',", uid, email, lic.Password, lic.License)
 	DumpUserData(email)
-	fmt.Printf("name:'%v', coord:{x:%v,y:%v,z:%v}, adminlevel:%v,", pl.name, pl.coord.X, pl.coord.Y, pl.coord.Z, pl.adminLevel)
+	fmt.Printf("name:'%v', coord:{x:%v,y:%v,z:%v}, adminlevel:%v, tscoretotal:%v, ", pl.name, pl.coord.X, pl.coord.Y, pl.coord.Z, pl.adminLevel, score)
 	fmt.Printf("weapongrade:%v, armorgrade:%v, helmetgrade:%v,", pl.WeaponType, pl.ArmorType, pl.HelmetType)
 	fmt.Printf("weaponlvl:%v, armorlvl:%v, helmetlvl:%v, level:%v,", pl.WeaponLvl, pl.ArmorLvl, pl.HelmetLvl, pl.level)
 	fmt.Printf("exp:%v, hitPoints:%v, mana:%v, numkill:%v, homesp:{x:%v,y:%v,z:%v}, territory:[", pl.exp, pl.hitPoints, pl.mana, pl.numKill, pl.homeSP.X, pl.homeSP.Y, pl.homeSP.Z)
