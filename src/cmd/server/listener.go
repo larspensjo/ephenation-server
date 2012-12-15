@@ -91,6 +91,7 @@ func ManageOneClient_WLuBlWLqWLa(conn net.Conn, i int) {
 	SendProtocolVersion_Bl(conn)
 	ManageOneClient2_WLuWLqWLmBlWLcWLw(conn, i)
 	if !NameIsTestPlayer(allPlayers[i].pl.name) && allPlayers[i].pl.name != dummyLoginName {
+		CmdSavePlayerNow_RluBl(i)
 		lastUser = allPlayers[i].pl.name
 		timeOfLogout = time.Now()
 	}
@@ -160,7 +161,6 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				moreData = false
 			}
 			if up.connState == PlayerConnStateDisc {
-				CmdSavePlayerNow_RluBl(i) // Force a save.
 				return
 			}
 		}
@@ -176,7 +176,6 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				// This is a normal case
 				log.Printf("Disconnect %v because of '%v'\n", up.pl.name, err)
 			}
-			CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
 			return
 		}
 		if n == 1 {
@@ -235,14 +234,12 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 						log.Printf("Temporary: %v, Timeout: %v\n", e2.Temporary(), e2.Timeout())
 					}
 				}
-				CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
 				return
 			}
 			if maxRetry <= 0 {
 				if *verboseFlag > 0 {
 					log.Printf("Disconnect %v because of max retry.\n", up.pl.name)
 				}
-				CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
 				return
 			}
 			n2 += n
@@ -291,7 +288,6 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				up.Printf_Bl("Last logout: %s in %s", lastUser, time.Now().Sub(timeOfLogout))
 			}
 		case CMD_QUIT:
-			CmdSavePlayerNow_RluBl(i)
 			if *verboseFlag > 1 {
 				log.Printf("Disconnect %v\n", up.pl.name)
 			}
