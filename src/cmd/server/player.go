@@ -26,6 +26,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"score"
 	"strconv"
 	"strings"
 	"time"
@@ -100,7 +101,7 @@ func (up *user) Load_WLwBlWLc(email string) bool {
 		up.HomeSP = up.Coord
 	}
 
-	// fmt.Printf("User: %#v\n", pl)
+	score.Initialize(up.Id)
 	return true
 }
 
