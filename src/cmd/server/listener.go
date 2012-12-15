@@ -183,11 +183,13 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			if *verboseFlag > 1 {
 				log.Printf("Got %d bytes reading from socket\n", n)
 			}
+			maxRetry := 1000
 			for n == 1 {
 				n2, err := conn.Read(buff[1:2]) // Second byte of the length
 				if err != nil || n2 != 1 {
-					if e2, ok := err.(*net.OpError); ok && (e2.Timeout() || e2.Temporary()) {
+					if e2, ok := err.(*net.OpError); ok && maxRetry > 0 && (e2.Timeout() || e2.Temporary()) {
 						log.Printf("Read timeout %v", e2)
+						maxRetry--
 						continue
 					}
 					log.Printf("Failed again to read: %v\n", err)
@@ -213,7 +215,8 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 		for n2 := n; n2 < length; {
 			// If unlucky, we only get one byte at a time
 			var e2 net.Error
-			for {
+			maxRetry := 1000
+			for maxRetry > 0 {
 				// Loop here until we get what we want.
 				n, err = conn.Read(buff[n2:length])
 				if err == nil {
@@ -223,6 +226,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				if ok && !e2.Temporary() && !e2.Timeout() {
 					break // Bad error, can't handle it.
 				}
+				maxRetry--
 			}
 			if err != nil {
 				if *verboseFlag > 0 {
@@ -230,6 +234,13 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 					if e2 != nil {
 						log.Printf("Temporary: %v, Timeout: %v\n", e2.Temporary(), e2.Timeout())
 					}
+				}
+				CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
+				return
+			}
+			if maxRetry <= 0 {
+				if *verboseFlag > 0 {
+					log.Printf("Disconnect %v because of max retry.\n", up.pl.name)
 				}
 				CmdSavePlayerNow_RluBl(i) // Force a save, so as not to lose anything, Ignore result.
 				return
