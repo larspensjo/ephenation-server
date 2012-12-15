@@ -474,9 +474,11 @@ func (up *user) FriendCommand_RLaWLu(arg string) {
 }
 
 func GraceFulShutdown() {
+	log.Println("User requested shut down")
 	score.Close()
 	SaveAllPlayers_RLa() // This will only set the flag to save
 	time.Sleep(1e9)      // TODO: not a pretty way. Wait for players to be saved.
+	log.Println("Goodbye!")
 	os.Exit(0)
 }
 
