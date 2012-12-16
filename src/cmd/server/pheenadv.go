@@ -307,7 +307,7 @@ func DumpUserData(email string) {
 	}
 	// defer ephenationdb.Release(db)
 
-	query := "SELECT firstname,lastname,todelete,newlicense,validatekey,invitedby,isvalidated,recovery,locked,registered,lastseen,newsletter,administrator FROM users WHERE email='" + email + "'"
+	query := "SELECT firstname,lastname,todelete,newlicense,invitedby,isvalidated,locked,registered,lastseen,newsletter,administrator FROM users WHERE email='" + email + "'"
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Println(err)
@@ -322,9 +322,9 @@ func DumpUserData(email string) {
 	}
 
 	// Some helper variables
-	var firstname, lastname, validatekey, invitedby, registered, lastseen string
-	var todelete, newlicense, isvalidated, recovery, locked, newsletter, webadministrator int
-	stmt.BindResult(&firstname, &lastname, &todelete, &newlicense, &validatekey, &invitedby, &isvalidated, &recovery, &locked, &registered, &lastseen, &newsletter, &webadministrator)
+	var firstname, lastname, invitedby, registered, lastseen string
+	var todelete, newlicense, isvalidated, locked, newsletter, webadministrator int
+	stmt.BindResult(&firstname, &lastname, &todelete, &newlicense, &invitedby, &isvalidated, &locked, &registered, &lastseen, &newsletter, &webadministrator)
 	eof, err := stmt.Fetch()
 	if err != nil {
 		log.Println(err)
@@ -333,13 +333,12 @@ func DumpUserData(email string) {
 	if eof {
 		return
 	}
-	fmt.Printf("firstname:'%v', lastname:'%v', validatekey:'%v',", firstname, lastname, validatekey)
+	fmt.Printf("firstname:'%v', lastname:'%v', ", firstname, lastname)
 	fmt.Printf("invitedby:'%v', registered:%v,", invitedby, JSDateString(registered))
 	fmt.Printf("lastseen:%v, ", JSDateString(lastseen))
 	PrintBool("webadministrator", webadministrator)
 	PrintBool("newsletter", newsletter)
 	PrintBool("isvalidated", isvalidated)
-	PrintBool("recovery", recovery)
 	PrintBool("locked", locked)
 	PrintBool("todelete", todelete)
 	PrintBool("newlicense", newlicense)
