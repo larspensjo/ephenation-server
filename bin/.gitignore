@@ -2,4 +2,7 @@
 /performance
 /server
 /shell
+/database
 /worldserver.log
+/database.log
+/.gdb_history

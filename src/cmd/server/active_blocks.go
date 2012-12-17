@@ -42,7 +42,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 	ignoreTrigger := false
 	// There is a theoretical chance that the following test can fail because of not using a lock.
 	// If so, the worst concequence would be that the trap would fail to trig.
-	if up.pl.dead {
+	if up.Dead {
 		ignoreTrigger = true
 	}
 	// A filter to prevent the same trigger from activating again
@@ -67,7 +67,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 
 	// Normally, the player coordinate can not change from another process. If it would happen,
 	// in worst case we would nto find the trap.
-	coord := up.pl.coord
+	coord := up.Coord
 	cc := coord.GetChunkCoord()
 	cp := ChunkFindCached_WLwWLc(cc)
 	x_off := uint8(int64(math.Floor(coord.X)) - int64(cc.X)*CHUNK_SIZE)
@@ -85,7 +85,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 	list := make([]localActivatorList, 0, 5) // Allocate a number of pointers, to avoid unneccesary reallocation to grow the vector.
 	now := time.Now()
 	cp.RLock()
-	ch_coord := cp.coord
+	ch_coord := cp.Coord
 	owner := cp.owner
 	for i, trig := range cp.blTriggers {
 		if trig.x != x_off || trig.y != y_off || trig.z != z_off {
@@ -163,7 +163,7 @@ func (up *user) CheckAndActivateTriggers_WLwWLuWLqWLmWLc(bl block) {
 func ActivatorIterator(f func(*user), list []quadtree.Object) (found int) {
 	for _, recepient := range list {
 		// For each object in the list, identify those that are players.
-		if other, ok := recepient.(*user); ok && !other.pl.dead {
+		if other, ok := recepient.(*user); ok && !other.Dead {
 			f(other)
 			found++
 		}
@@ -187,19 +187,19 @@ func (up *user) ActivatorMessage_WLuWLqWLmWLc(line string, ac *user_coord, recep
 		switch {
 		case strings.HasPrefix(split[0], "/level>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.level <= uint32(lim)
+			terminate = err == nil && up.Level <= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/level<"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.level >= uint32(lim)
+			terminate = err == nil && up.Level >= uint32(lim)
 			if terminate {
 				return
 			}
 		case strings.HasPrefix(split[0], "/admin>"):
 			lim, err := strconv.Atoi(split[0][7:])
-			terminate = err == nil && up.pl.adminLevel <= uint8(lim)
+			terminate = err == nil && up.AdminLevel <= uint8(lim)
 			if terminate {
 				return
 			}
@@ -338,7 +338,7 @@ func TestKeyCond_RLu(up *user, owner uint32, modifier string, descr string) bool
 	}
 	if err1 == nil {
 		up.RLock()
-		res := up.pl.Keys.Test(owner, uint(keyId))
+		res := up.Keys.Test(owner, uint(keyId))
 		up.RUnlock()
 		if !res {
 			up.Printf_Bl("%s", descr)
@@ -368,7 +368,7 @@ func ActivatorMessageAddKey_WLu(recepients []quadtree.Object, owner uint32, modi
 		if err1 == nil && err2 == nil {
 			key := keys.Make(owner, uint(keyId), name, uint(viewId))
 			up.Lock()
-			up.pl.Keys = up.pl.Keys.Add(key)
+			up.Keys = up.Keys.Add(key)
 			up.Unlock()
 		} else {
 			log.Println("Bad modifier", modifier, err1, err2)
@@ -380,28 +380,23 @@ func ActivatorMessageAddKey_WLu(recepients []quadtree.Object, owner uint32, modi
 // Add an inventory item to all recepients. Return a new inhibit time, which depends on the reward
 // value and number of recipients.
 func ActivatorMessageInventoryAdd(recepients []quadtree.Object, modifier string, ac *user_coord) int {
-	maker, ok := objectTable[modifier]
-	if !ok {
-		return -1
-	}
-	level := MonsterDifficulty(ac) // We want an object of a level corresponding to the monsters at this place.
+	code := ObjectCode(modifier)
 	var quality float64
 	if len(modifier) == 4 && modifier[3] <= '9' && modifier[3] >= '1' {
 		quality = float64(modifier[3]) - '0' // A value 0 to 4.
 	}
 	cost := math.Pow(2, quality-1) // Will give a value of 0,5, 1, 2, 4, or 8
 	f := func(up *user) {
-		cp := ChunkFindCached_WLwWLc(up.pl.coord.GetChunkCoord())
+		cp := ChunkFindCached_WLwWLc(up.Coord.GetChunkCoord())
 		owner := cp.owner
 		costCovered := true
-		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.uid != OWNER_TEST {
+		if owner != OWNER_NONE && owner != OWNER_RESERVED && owner != OWNER_TEST && up.Id != OWNER_TEST {
 			// This time, also include the case where owner of chunk is up.
 			costCovered = score.Pay(owner, cost)
 		}
 		if costCovered {
-			obj := maker(level)
-			AddOneObjectToUser_WLuBl(up, obj)
-			// up.Printf("Added object %#v to %v", obj, up.pl.name)
+			AddOneObjectToUser_WLuBl(up, code)
+			// up.Printf("Added object %#v to %v", obj, up.Name)
 		}
 	}
 	numRecepients := ActivatorIterator(f, recepients)
@@ -443,7 +438,7 @@ func (ch *chunk) ComputeLinks() {
 	prevTextMsgActivator := ch.triggerMsgs
 	// Make a new list, initialize length to the same as the old. This is the usual case, but need not be exactly correct.
 	ch.triggerMsgs = make([]textMsgActivator, 0, len(prevTextMsgActivator))
-	// fmt.Printf("ComputeLinks chunk %v\n", ch.coord)
+	// fmt.Printf("ComputeLinks chunk %v\n", ch.Coord)
 	ch.blTriggers = nil // Initialize to empty list
 	for x := 0; x < CHUNK_SIZE; x++ {
 		for y := 0; y < CHUNK_SIZE; y++ {
@@ -504,7 +499,7 @@ func (ch *chunk) FollowLinkNeighbors_WLwWLc(x, y, z int, tested map[uint32]bool)
 
 // Check the argument, as a neighbor chunk may be needed.
 func (ch *chunk) FollowLink_WLwWLc(x, y, z int, tested map[uint32]bool) {
-	// fmt.Printf("FollowLink new %v, orig %v\n", ch.coord, orig.coord)
+	// fmt.Printf("FollowLink new %v, orig %v\n", ch.Coord, orig.Coord)
 	switch {
 	case x < 0:
 		fallthrough
@@ -529,7 +524,7 @@ func (ch *chunk) FollowLink_WLwWLc(x, y, z int, tested map[uint32]bool) {
 	bl := ch.rc[x][y][z]
 	if bl == BT_Spawn || bl == BT_Text {
 		// Found an activator.
-		// fmt.Printf("FollowLink: Activator %d at %d,%d,%d (chunk %v,)\n", bl, x, y, z, ch.coord)
+		// fmt.Printf("FollowLink: Activator %d at %d,%d,%d (chunk %v,)\n", bl, x, y, z, ch.Coord)
 		var bt BlockTrigger
 		bt.x2, bt.y2, bt.z2 = uint8(x), uint8(y), uint8(z)
 		bt.x = CHUNK_SIZE // Illegal value to indicate that the trigger coordinate shall be updated later.

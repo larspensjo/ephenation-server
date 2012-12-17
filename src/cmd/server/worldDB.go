@@ -139,7 +139,7 @@ type jellyBlock struct {
 // Description of a chunk. A chunk mainly consists of 32x32x32 blocks.
 type chunk struct {
 	next         *chunk             // Linked list with all chunks at the same hash value
-	coord        chunkdb.CC         // The chunk coordinate for this chunk
+	Coord        chunkdb.CC         // The chunk coordinate for this chunk
 	rc           *raw_chunk         // nil if no unpacked data. This may be the case now and then, to save RAM.
 	ch_comp      []byte             // This pointer always points to something. If no read lock, the pointer may change.
 	ch_comp2     []byte             // Same as ch_comp, but all invisible blocks replaced by air. This is only used for sending to clients. Can be nil to save RAM.
@@ -196,7 +196,7 @@ func (coord user_coord) CallNearPlayers_RLq(cmd ClientCommand, exclude *user) {
 			// This player shall be excluded from the list
 			continue
 		}
-		if other.pl.coord.Z > coord.Z+client_prot.NEAR_OBJECTS || other.pl.coord.Z < coord.Z-client_prot.NEAR_OBJECTS {
+		if other.Coord.Z > coord.Z+client_prot.NEAR_OBJECTS || other.Coord.Z < coord.Z-client_prot.NEAR_OBJECTS {
 			// The quad tree doesn't check for nearness in z dimension
 			continue
 		}
@@ -212,7 +212,7 @@ func DBChunkFileName(c chunkdb.CC) string {
 // The chunk is already locked and compressed.
 func (ch *chunk) Write() {
 	// Create file name for this chunk
-	fn := DBChunkFileName(ch.coord)
+	fn := DBChunkFileName(ch.Coord)
 	file, err := os.Create(fn)
 	if err != nil {
 		log.Printf("chunk.Write open %s failed: %v\n", fn, err)
@@ -233,14 +233,14 @@ func (ch *chunk) WriteFS(file io.Writer) bool {
 	EncodeUint32(0, b[20:24]) // Reserved for future usage
 	n, err := file.Write(b[:])
 	if err != nil {
-		log.Printf("chunk.Write: Saving chunk %v failure: %s (%d of %d bytes)\n", ch.coord, err, n, len(b))
+		log.Printf("chunk.Write: Saving chunk %v failure: %s (%d of %d bytes)\n", ch.Coord, err, n, len(b))
 		return false
 	}
 
 	// Save the compressed blocks
 	err = ch.WritePartition(file, ch.ch_comp, PART_COMP_CHUNK)
 	if err != nil {
-		log.Printf("chunk.Write: Saving chunk PART_COMP_CHUNK %v failure: %s (%d of %d bytes)\n", ch.coord, err, n, len(b))
+		log.Printf("chunk.Write: Saving chunk PART_COMP_CHUNK %v failure: %s (%d of %d bytes)\n", ch.Coord, err, n, len(b))
 		return false
 	}
 
@@ -252,12 +252,12 @@ func (ch *chunk) WriteFS(file io.Writer) bool {
 		encoder := gob.NewEncoder(&buffer)
 		err = encoder.Encode(&ch.triggerMsgs)
 		if err != nil {
-			log.Printf("WriteFS: encode failed %v (for chunk %v)\n", err, ch.coord)
+			log.Printf("WriteFS: encode failed %v (for chunk %v)\n", err, ch.Coord)
 			return false
 		}
 		err = ch.WritePartition(file, buffer.Bytes(), PART_TEXT_ACTIVATORS)
 		if err != nil {
-			log.Printf("WriteFS: PART_TEXT_ACTIVATORS write failed %v (for chunk %v)\n", err, ch.coord)
+			log.Printf("WriteFS: PART_TEXT_ACTIVATORS write failed %v (for chunk %v)\n", err, ch.Coord)
 			return false
 		}
 	}
@@ -265,7 +265,7 @@ func (ch *chunk) WriteFS(file io.Writer) bool {
 }
 
 func (ch *chunk) WritePartition(file io.Writer, data []byte, pType TPartition) error {
-	// fmt.Printf("Write chunk %v partition %v size %v\n", ch.coord, pType, len(data))
+	// fmt.Printf("Write chunk %v partition %v size %v\n", ch.Coord, pType, len(data))
 	var b [4]byte
 	EncodeUint16(uint16(pType), b[0:2])
 	EncodeUint16(uint16(len(data)), b[2:4])
@@ -386,7 +386,7 @@ func dBReadChunk(c chunkdb.CC, file io.Reader, size int64) *chunk {
 			// be used, and not released until the chunk is released. However, doing a copy of the data is maybe expensive.
 			ch.ch_comp = b[0:pLength]
 			ch.rc = decompressChunk(ch.ch_comp)
-			ch.coord = c // Must define the chunk coordinate before following trigger links.
+			ch.Coord = c // Must define the chunk coordinate before following trigger links.
 		case PART_TEXT_ACTIVATORS:
 			buffer := bytes.NewBuffer(b[0:pLength])
 			decoder := gob.NewDecoder(buffer)
@@ -395,7 +395,7 @@ func dBReadChunk(c chunkdb.CC, file io.Reader, size int64) *chunk {
 				log.Printf("DBReadChunk: decode failed %v (from %v)\n", err, b[0:pLength])
 				return dBCreateAndSaveChunk(c)
 			}
-			// fmt.Printf("DBReadChunk ch(%v) activator messages: %v\n", ch.coord, ch.triggerMsgs)
+			// fmt.Printf("DBReadChunk ch(%v) activator messages: %v\n", ch.Coord, ch.triggerMsgs)
 		default:
 			log.Printf("DBReadChunk: bad partition type %d or partition length %d (%d)\n", pType, pLength, len(b))
 			return dBCreateAndSaveChunk(c)
@@ -468,10 +468,10 @@ func DBGetBlock_WLwWLc(uc user_coord) block {
 // chunk again. There are some use cases that iterate over near positions repeatedly.
 // This variable can change anytime asynchronously. Always make a copy!
 // The pointer is expected to change atomically.
-var dbGetBlockLastChunk = &chunk{coord: chunkdb.CC{math.MaxInt32, math.MaxInt32, math.MaxInt32}} // Initialize to invalid chunk address
+var dbGetBlockLastChunk = &chunk{Coord: chunkdb.CC{math.MaxInt32, math.MaxInt32, math.MaxInt32}} // Initialize to invalid chunk address
 func ChunkFindCached_WLwWLc(cc chunkdb.CC) *chunk {
 	cp := dbGetBlockLastChunk // Make a copy of the pointer to the previous chunk used
-	if cp.coord.X != cc.X || cp.coord.Y != cc.Y || cp.coord.Z != cc.Z {
+	if cp.Coord.X != cc.X || cp.Coord.Y != cc.Y || cp.Coord.Z != cc.Z {
 		cp = ChunkFind_WLwWLc(cc)
 		dbGetBlockLastChunk = cp
 	} else {
@@ -511,7 +511,7 @@ func (cp *chunk) UpdateBlock_WLcWLw(x_off, y_off, z_off uint8, blType block) boo
 	rc := cp.rc
 	if rc[x_off][y_off][z_off] != BT_Air && blType != BT_Air {
 		// Non fatal problem, a client maybe tried twice.
-		log.Printf("UpdateBlock (%d,%d,%d) chunk %v had type %d already\n", x_off, y_off, z_off, cp.coord, blType)
+		log.Printf("UpdateBlock (%d,%d,%d) chunk %v had type %d already\n", x_off, y_off, z_off, cp.Coord, blType)
 		return false
 	}
 
@@ -534,7 +534,7 @@ func (cp *chunk) UpdateBlock_WLcWLw(x_off, y_off, z_off uint8, blType block) boo
 func (cp *chunk) TurnToJelly(x, y, z uint8, timeout time.Time) {
 	orig := cp.rc[x][y][z]
 	if orig == BT_Air {
-		log.Println("Tried to make jelly of air at", cp.coord, x, y, z)
+		log.Println("Tried to make jelly of air at", cp.Coord, x, y, z)
 		return
 	}
 	jb := jellyBlock{x: x, y: y, z: z, original: orig, timeOut: timeout}
@@ -671,21 +671,21 @@ func dBGetAdjacentChunks(cc *chunkdb.CC) []*chunk {
 
 // Set a teleport in the specified chunk.
 func (cp *chunk) SetTeleport(cc chunkdb.CC, up *user, x, y, z uint8) {
-	if cp == nil || (cp.owner != up.uid && up.pl.adminLevel == 0) {
+	if cp == nil || (cp.owner != up.Id && up.AdminLevel == 0) {
 		up.Printf_Bl("#FAIL")
 		return
 	}
 
 	// Count the number of teleports in other chunks that the player already has
 	numTeleports := 0
-	for _, terr := range up.pl.territory {
+	for _, terr := range up.Territory {
 		_, _, _, found := superChunkManager.GetTeleport(&terr)
 		if found && terr != cc {
 			numTeleports++
 			// up.Printf_Bl("%v", terr)
 		}
 	}
-	if numTeleports > 0 && up.pl.adminLevel == 0 {
+	if numTeleports > 0 && up.AdminLevel == 0 {
 		up.Printf_Bl("#FAIL You can only have one magical portal")
 		return
 	}
@@ -698,5 +698,5 @@ func (cp *chunk) SetTeleport(cc chunkdb.CC, up *user, x, y, z uint8) {
 		}
 		up.SendMessageBlockUpdate(cc, x, y, z, BT_Teleport)
 	}
-	up.pl.coord.CallNearPlayers_RLq(f, nil)
+	up.Coord.CallNearPlayers_RLq(f, nil)
 }

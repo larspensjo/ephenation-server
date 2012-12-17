@@ -60,11 +60,11 @@ func ProcPurgeOldChunks_WLw() {
 			if !pc.touched {
 				// No one used this chunk since last checked, so it is released
 				RemoveChunkFromHashTable(pc)
-				// fmt.Printf("ProcPurgeOldChunks: free %v\n", pc.coord)
+				// fmt.Printf("ProcPurgeOldChunks: free %v\n", pc.Coord)
 			} else {
 				// The chunk was touched. Give it another chance.
 				pc.touched = false
-				// fmt.Printf("ProcPurgeOldChunks: keep %v\n", pc.coord)
+				// fmt.Printf("ProcPurgeOldChunks: keep %v\n", pc.Coord)
 			}
 			pc = next
 		}

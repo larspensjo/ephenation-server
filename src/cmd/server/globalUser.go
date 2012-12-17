@@ -23,7 +23,6 @@ import (
 	"chunkdb"
 	"client_prot"
 	"fmt"
-	"inventory"
 	"log"
 	"math"
 	"quadtree"
@@ -34,7 +33,7 @@ func SaveAllPlayers_RLa() {
 	allPlayersSem.RLock()
 	for i := 0; i < MAX_PLAYERS; i++ {
 		up := allPlayers[i]
-		if up != nil && up.lic != nil && up.connState == PlayerConnStateIn {
+		if up != nil && up.Email != "" && up.connState == PlayerConnStateIn {
 			up.forceSave = true
 		}
 		// up.Printf("Autosave");
@@ -62,7 +61,7 @@ func (up *user) writeNonBlocking(b []byte) {
 		panic("Wrong length of message")
 	}
 	if *verboseFlag > 2 {
-		log.Printf("Non blocking Send to %v '%v'\n", up.pl.name, b)
+		log.Printf("Non blocking Send to %v '%v'\n", up.Name, b)
 	}
 	select {
 	case up.channel <- b:
@@ -106,7 +105,7 @@ func (up *user) SendMessageBlockUpdate(cc chunkdb.CC, dx uint8, dy uint8, dz uin
 // Report the inventory for one item to a player.
 // The amount can be 0. The purpose of this function is to update the client for a specific
 // inventory item.
-func ReportOneInventoryItem_WluBl(up *user, code string, lvl uint32) {
+func ReportOneInventoryItem_WluBl(up *user, code ObjectCode, lvl uint32) {
 	const msgLen = 12
 	b := make([]byte, msgLen)
 	b[0] = byte(msgLen)
@@ -118,18 +117,14 @@ func ReportOneInventoryItem_WluBl(up *user, code string, lvl uint32) {
 	// b[7] = 0 // Default count is 0
 	EncodeUint32(lvl, b[8:12])
 	up.RLock()
-	inv := up.pl.inventory
-	l := inv.Len()
-	for i := 0; i < l; i++ {
-		obj := inv.Get(i)
-		if obj.ID() == code && (lvl == 0 || lvl == obj.GetLevel()) {
-			count := obj.GetCount()
-			if count > math.MaxUint8 {
-				count = math.MaxUint8 // This is what can be shown to the client
-			}
-			b[7] = count
-			break
+	inv := up.Inventory
+	i := inv.Find(code, lvl)
+	if i >= 0 {
+		count := inv[i].Count
+		if count > math.MaxUint8 {
+			count = math.MaxUint8 // This is what can be shown to the client
 		}
+		b[7] = byte(count)
 	}
 	up.RUnlock()
 	// Wait with the actual writing until after unlocking the player.
@@ -137,9 +132,23 @@ func ReportOneInventoryItem_WluBl(up *user, code string, lvl uint32) {
 	// log.Println(b)
 }
 
-func AddOneObjectToUser_WLuBl(up *user, obj inventory.Object) {
+// Add an object to the player inventory. It will automatically get a level that corresponds
+// to the current position.
+func AddOneObjectToUser_WLuBl(up *user, Type ObjectCode) {
 	up.Lock()
-	up.pl.inventory.Add(obj)
+	level := MonsterDifficulty(&up.Coord) // We want an object of a level corresponding to the monsters at this place.
+	up.Inventory.AddOneObject(Type, level)
 	up.Unlock()
-	ReportOneInventoryItem_WluBl(up, obj.ID(), obj.GetLevel())
+	ReportOneInventoryItem_WluBl(up, Type, level)
+}
+
+// Find all players near 'up', including self, and report the equipment of 'up'
+func ReportEquipmentToNear_Bl(up *user) {
+	nearPlayers := playerQuadtree.FindNearObjects_RLq(up.GetPreviousPos(), client_prot.NEAR_OBJECTS)
+	log.Println("Near players", len(nearPlayers))
+	for _, o := range nearPlayers {
+		if other, ok := o.(*user); ok {
+			other.ReportEquipment_Bl(up)
+		}
+	}
 }

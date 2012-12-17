@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"github.com/robfig/goconfig/config"
 	"io/ioutil"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"license"
 	"log"
 	"math/rand"
@@ -50,7 +52,7 @@ var (
 	logOnStdout         = flag.Bool("s", false, "Send log file to standard otput")
 	inhibitCreateChunks = flag.Bool("nocreate", false, "Only load modified chunks, and save no changes")
 	configFileName      = flag.String("configfile", "config.ini", "General configuration file")
-	dumpsql             = flag.Bool("dumpsql", false, "Create a dump of the complete SQL DB, and then exit")
+	createuser          = flag.String("createuser", "", "Create user from argument 'email,password,avatar'")
 
 	trafficStatistics = traffic.New()
 	superChunkManager = superchunk.New(CnfgSuperChunkFolder)
@@ -59,39 +61,45 @@ var (
 
 func main() {
 	flag.Parse()
+
+	if !*logOnStdout {
+		logFile, _ := os.OpenFile(*logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		log.SetOutput(logFile)
+	}
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	cnfg, err := config.ReadDefault(*configFileName)
 	if err != nil {
 		log.Println("Fail to find", *configFileName, err)
 		return
 	}
-	if cnfg.HasSection("sql") {
-		server, err := cnfg.String("sql", "DatabaseServer")
+	configSection := "db"
+	if cnfg.HasSection(configSection) {
+		f := func(key string) string {
+			value, err := cnfg.String(configSection, key)
+			if err != nil {
+				log.Println("Config file", *configFileName, "Failt to find key", key, err)
+				return ""
+			}
+			return value
+		}
+		err = ephenationdb.SetConnection(f)
 		if err != nil {
-			log.Println(*configFileName, "DatabaseServer:", err)
+			log.Println("main: open DB:", err)
 			return
 		}
-		name, err := cnfg.String("sql", "DatabaseName")
-		if err != nil {
-			log.Println(*configFileName, "DatabaseName:", err)
-			return
-		}
-		login, err := cnfg.String("sql", "DatabaseLogin")
-		if err != nil {
-			log.Println(*configFileName, "DatabaseLogin:", err)
-			return
-		}
-		pwd, err := cnfg.String("sql", "DatabasePassword")
-		if err != nil {
-			log.Println(*configFileName, "DatabasePassword:", err)
-			return
-		}
-		ephenationdb.SetConnection(server, name, login, pwd)
 	} else {
 		log.Println("Config file", configFileName, "missing, or no section 'sql'")
 	}
 	if encryptionSalt, err = cnfg.String("login", "salt"); err != nil {
 		encryptionSalt = "" // Effectively no salt
 	}
+
+	if *createuser != "" {
+		CreateUser(*createuser)
+		return
+	}
+
 	if *convertChunkFiles {
 		ConvertFiles()
 		return
@@ -103,16 +111,6 @@ func main() {
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile() // Also done from special command /shutdown
-	}
-	if !*logOnStdout {
-		logFile, _ := os.OpenFile(*logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-		log.SetOutput(logFile)
-	}
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
-	if *dumpsql {
-		DumpSQL()
-		os.Exit(0)
 	}
 	if *tflag {
 		DoTest()
@@ -140,7 +138,6 @@ func main() {
 		log.Printf("%v, server abort\n", err)
 		os.Exit(1)
 	}
-	go chunkdb.Poll_Bl() // Will terminate if there is no access to the SQL DB
 	go ProcAutosave_RLu()
 	go ProcPurgeOldChunks_WLw()
 	go CatchSig()
@@ -195,165 +192,37 @@ func ConvertFiles() {
 	fmt.Printf("%d Modified, %d non modified\n", mod, unmod)
 }
 
-func DumpSQL() {
+// Helper function to create a user (license) and an avatar for that user
+func CreateUser(str string) {
+	args := strings.Split(str, ",")
+	if len(args) != 3 && len(args) != 4 {
+		fmt.Println("Usage: server -createuser=email,password,avatar[,licensekey]")
+		return
+	}
+	var up user
+	up.New_WLwWLc(args[2])
+	up.Email = args[0]
+	up.License, up.Password = license.Make(args[1], "")
+	up.License = args[3] // Override
+	c := ephenationdb.New().C("counters")
+	var id struct {
+		C uint32
+	}
+	change := mgo.Change{
+		Update:    bson.M{"$inc": bson.M{"c": 1}},
+		ReturnNew: true,
+	}
+	_, err := c.FindId("avatarId").Apply(change, &id)
+	if err != nil {
+		fmt.Println("Failed to update unique counter 'avatarId' in collection 'counter'", err)
+		return
+	}
+	up.Id = id.C
 	db := ephenationdb.New()
-	if db == nil {
-		return
-	}
-	defer ephenationdb.Release(db)
-
-	// Build a query for the avatar name sent as an argument
-	// TODO: Assert that the avatar name is unique and on this server for the current user?
-	query := "SELECT owner,name,id,PositionX,PositionY,PositionZ,isFlying,isClimbing,isDead,DirHor,DirVert,AdminLevel,Level,Experience,HitPoints,Mana,Kills,HomeX,HomeY,HomeZ,ReviveX,ReviveY,ReviveZ,maxchunks,BlocksAdded,BlocksRemoved,TimeOnline,HeadType,BodyType,inventory,TScoreTotal,TScoreBalance,TScoreTime,TargetX,TargetY,TargetZ,TScoreTotal FROM avatars"
-	stmt, err := db.Prepare(query)
+	err = db.C("avatars").Insert(&up)
 	if err != nil {
-		log.Println(err)
+		log.Println("Save", up.Name, err)
 		return
 	}
-
-	// Execute statement
-	err = stmt.Execute()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// Some helper variables
-	var owner string
-	var uid, maxuid uint32
-	var packedInv []byte
-	var terrScore, terrScoreBalance float64
-	var terrScoreTimestamp uint32
-	var TScoreTotal float32
-	// Booleans doesn't work
-	var flying, climbing, dead int
-	var pl player
-	stmt.BindResult(&owner, &pl.name, &uid, &pl.coord.X, &pl.coord.Y, &pl.coord.Z, &flying, &climbing, &dead, &pl.dirHor, &pl.dirVert, &pl.adminLevel, &pl.level,
-		&pl.exp, &pl.hitPoints, &pl.mana, &pl.numKill, &pl.homeSP.X, &pl.homeSP.Y, &pl.homeSP.Z, &pl.reviveSP.X, &pl.reviveSP.Y, &pl.reviveSP.Z, &pl.maxchunks,
-		&pl.blockAdd, &pl.blockRem, &pl.timeOnline, &pl.head, &pl.body, &packedInv, &terrScore, &terrScoreBalance, &terrScoreTimestamp,
-		&pl.targetCoor.X, &pl.targetCoor.Y, &pl.targetCoor.Z, &TScoreTotal)
-
-	fmt.Println("use ephenation")
-	for {
-		eof, err := stmt.Fetch()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if eof {
-			break
-		}
-		if uid > maxuid {
-			maxuid = uid
-		}
-		// Some post processing
-		if flying == 1 {
-			pl.flying = true
-		}
-		if climbing == 1 {
-			pl.climbing = true
-		}
-		if dead == 1 {
-			pl.dead = true
-		}
-
-		if pl.maxchunks == -1 {
-			// This parameter was not initialized.
-			pl.maxchunks = CnfgMaxOwnChunk
-		}
-		terr, ok := chunkdb.ReadAvatar_Bl(uint32(uid))
-		if ok {
-			pl.territory = terr
-		}
-		DumpSQLPlayer(uid, owner, &pl, packedInv, TScoreTotal)
-	}
-	fmt.Printf("db.counters.update({_id:'avatarId'},{c:%v})\n", maxuid+1)
-}
-
-func DumpSQLPlayer(uid uint32, email string, pl *player, packedInv []byte, score float32) {
-	var err error
-
-	// If there was data in the inventory "blob", unpack it.
-	if len(packedInv) > 0 {
-		err = pl.inventory.Unpack([]byte(packedInv))
-		if err != nil {
-			log.Println("Failed to unpack", err, packedInv)
-		}
-		// Save what can be saved, and remove unknown objects.
-		pl.inventory.CleanUp()
-	}
-
-	lic := license.Load_Bl(email)
-	if lic == nil {
-		log.Println("Failed to load license for", email)
-		return
-	}
-	fmt.Printf("db.avatars.save({_id:%v, email:'%v', password:'%v', license:'%v',", uid, email, lic.Password, lic.License)
-	DumpUserData(email)
-	fmt.Printf("name:'%v', coord:{x:%v,y:%v,z:%v}, adminlevel:%v, tscoretotal:%v, ", pl.name, pl.coord.X, pl.coord.Y, pl.coord.Z, pl.adminLevel, score)
-	fmt.Printf("weapongrade:%v, armorgrade:%v, helmetgrade:%v,", pl.WeaponType, pl.ArmorType, pl.HelmetType)
-	fmt.Printf("weaponlvl:%v, armorlvl:%v, helmetlvl:%v, level:%v,", pl.WeaponLvl, pl.ArmorLvl, pl.HelmetLvl, pl.level)
-	fmt.Printf("exp:%v, hitPoints:%v, mana:%v, numkill:%v, homesp:{x:%v,y:%v,z:%v}, territory:[", pl.exp, pl.hitPoints, pl.mana, pl.numKill, pl.homeSP.X, pl.homeSP.Y, pl.homeSP.Z)
-	for _, ch := range pl.territory {
-		fmt.Printf("{x:%v,y:%v,z:%v},", ch.X, ch.Y, ch.Z)
-	}
-	fmt.Printf("], maxchunks:%v, blockadd:%v, blockrem:%v, timeonline:%v})\n\n", pl.maxchunks, pl.blockAdd, pl.blockRem, pl.timeOnline)
-}
-
-func DumpUserData(email string) {
-	db := ephenationdb.New()
-	if db == nil {
-		return
-	}
-	// defer ephenationdb.Release(db)
-
-	query := "SELECT firstname,lastname,todelete,newlicense,invitedby,isvalidated,locked,registered,lastseen,newsletter,administrator FROM users WHERE email='" + email + "'"
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// Execute statement
-	err = stmt.Execute()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// Some helper variables
-	var firstname, lastname, invitedby, registered, lastseen string
-	var todelete, newlicense, isvalidated, locked, newsletter, webadministrator int
-	stmt.BindResult(&firstname, &lastname, &todelete, &newlicense, &invitedby, &isvalidated, &locked, &registered, &lastseen, &newsletter, &webadministrator)
-	eof, err := stmt.Fetch()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if eof {
-		return
-	}
-	fmt.Printf("firstname:'%v', lastname:'%v', ", firstname, lastname)
-	fmt.Printf("invitedby:'%v', registered:%v,", invitedby, JSDateString(registered))
-	fmt.Printf("lastseen:%v, ", JSDateString(lastseen))
-	PrintBool("webadministrator", webadministrator)
-	PrintBool("newsletter", newsletter)
-	PrintBool("isvalidated", isvalidated)
-	PrintBool("locked", locked)
-	PrintBool("todelete", todelete)
-	PrintBool("newlicense", newlicense)
-}
-
-func PrintBool(name string, value int) {
-	if value == 0 {
-		return
-	}
-	fmt.Printf("%s:true, ", name)
-}
-
-// Convert a date on the format "2012-12-31" to something that can be used in Javascript
-func JSDateString(date string) string {
-	var year, month, day int
-	fmt.Sscanf(date, "%d-%d-%d", &year, &month, &day)
-	return fmt.Sprintf("new Date(%d, %d, %d)", year, month-1, day)
+	fmt.Println("Created avatar number", up.Id, ":", up.Name)
 }
