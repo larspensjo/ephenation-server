@@ -15,11 +15,22 @@
 // along with Ephenation.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-package score
-
 //
 // This package will keep the score of territories.
 //
+// There are two parallel tables of scores, pointing to the same data. One
+// map is used for efficiently mapping from uid to a pointer to the score data,
+// and one linear table is used to traverse the complete list for updates and saves.
+// The reason for this is that there will be a lot of updates of scores, which has to be
+// very efficient. Every such access have to lock the map. Whenever the whole list is
+// traversed periodically, the map must not be locked as it takes some time.
+//
+// Note that the score entry itself is not locked. That means that there is a small chance
+// that data can be corrupted. The worst case is a failed update, which is acceptable.
+//
+// The "BalanceScore" is similar to the total score, but it will decay towards a value greater than 0.
+//
+package score
 
 import (
 	"chunkdb"
@@ -38,7 +49,7 @@ import (
 )
 
 const (
-	ConfigScoreUpdatePeriod = 1e11                // The perdiod between updates of teh SQL DB
+	ConfigScoreUpdatePeriod = 1e11                // The perdiod between updates of the database
 	ConfigScoreHalfLife     = time.Hour * 24 * 30 // The half life off the score decay
 	ConfigScoreBalHalfLife  = time.Hour * 24 * 5  // The half life off the scoreBalance decay
 	ConfigScoreBalanceZero  = 10                  // The value that ScoreBalance will decay to, which is not 0
@@ -55,7 +66,6 @@ type territoryScore struct {
 	handicap     float64   // How much to scale Score with. This is 1 for most players.
 	TimeStamp    time.Time // The score will decay depending on this time
 	uid          uint32    // Owner
-	initialized  bool      // If the data has been initialized from the SQL DB
 	modified     bool      // Has the value changed since last it was saved?
 	name         string    // Not really needed, but nice for info
 }
@@ -63,31 +73,28 @@ type territoryScore struct {
 var (
 	scores      = make(map[uint32]*territoryScore) // This map must always be locked by a mutex.
 	procStatus  tomb.Tomb                          // Used to monitor the state of the process
-	mutex       sync.RWMutex
+	mutex       sync.RWMutex                       // Used to protect the map
 	chScoreList = make(chan *territoryScore, 100)
-	disableSQL  = flag.Bool("score.disableSQL", false, "Disable all updates with the SQL DB")
+	disableSave = flag.Bool("score.DisableSave", false, "Disable all updates with the database")
 )
 
 // Helper function. Get a pointer to the score for the specified 'uid'.
-// The value pointed at can change asynchronously, after the lock is removed.
 func getTerritoryScore(uid uint32) *territoryScore {
-	// Need a read lock on the map
 	mutex.RLock()
-	ts := scores[uid]
+	ts := scores[uid] // Need a read lock on the map
 	mutex.RUnlock()
-	if ts == nil {
-		// There was no data yet for 'uid'. Now a write lock is needed, but it is not the usual case.
-		ts = new(territoryScore)
-		ts.TimeStamp = time.Now() // Initialize time
-		ts.ScoreBalance = ConfigScoreBalanceZero
-		ts.handicap = 1
-		ts.uid = uid
-		mutex.Lock()
-		scores[uid] = ts
-		mutex.Unlock()
-		// Also send a copy to the maintenance process
-		chScoreList <- ts
+	if ts != nil {
+		return ts
 	}
+
+	// There was no data yet for 'uid'.
+	ts = new(territoryScore)
+	loadFromSQL(ts, uid)
+	mutex.Lock()
+	scores[uid] = ts // Use a write lock
+	mutex.Unlock()
+	// Also send a copy to the maintenance process
+	chScoreList <- ts
 	return ts
 }
 
@@ -111,27 +118,9 @@ func computeFactor(numChunks int) float64 {
 	return ConfigHandicapLimit / terr
 }
 
-// There is a report, usually from a player logging in, of the score for a player. Use it if we had no value yet.
-// That way, there will be no need to later initialize the value from the SQL DB. The number of chunks is used to
-// compute a handicap for players with more chunks than standard.
-func Initialize(uid uint32, points, scoreBalance float64, timestamp uint32, name string, numChunks int) {
-	ts := getTerritoryScore(uid)
-	if !ts.initialized {
-		// TODO: Use an atomic test-modify-write here for ts.initialized
-		// Add the value from the SQL DB to the current values
-		ts.initialized = true
-		oldHandicap := ts.handicap
-		ts.handicap = computeFactor(numChunks)
-		ts.Score = ts.Score*ts.handicap/oldHandicap + points
-		ts.ScoreBalance += scoreBalance - ConfigScoreBalanceZero // Deduct the initial ConfigScoreBalanceZero value
-		ts.TimeStamp = time.Unix(int64(timestamp), 0)
-		ts.name = name
-		ts.modified = true
-		now := time.Now()
-		ts.decay(&now) // Update the decay
-		log.Printf("score.Initialize after decay to %.2f balance %.2f, handicap %.2f, from %.2f, %.2f, %.2f",
-			ts.Score, ts.ScoreBalance, ts.handicap, points, scoreBalance, float64(timestamp)/3600)
-	}
+// Trig loading of a player
+func Initialize(uid uint32) {
+	getTerritoryScore(uid)
 }
 
 // Pay 'cost' for a reward, and return true if the ScoreBalance was enough.
@@ -145,12 +134,6 @@ func Pay(uid uint32, cost float64) bool {
 	ts.ScoreBalance -= cost
 	ts.modified = true
 	return true
-}
-
-// Get the score and the score balance. This is a debug function, and should normally not be needed.
-func Get(uid uint32) (float64, float64) {
-	ts := getTerritoryScore(uid)
-	return ts.Score, ts.ScoreBalance
 }
 
 // Close the update process, and return the status
@@ -168,17 +151,21 @@ func Close() (ret bool) {
 	return
 }
 
+// Debug function
 func Report(wr io.Writer) {
 	now := time.Now()
 	mutex.RLock()
 	for uid, ts := range scores {
 		age := float64(now.Sub(ts.TimeStamp)) / float64(time.Hour)
-		fmt.Fprintf(wr, "%s (Uid %d) Score %.1f Balance %.1f Handicap %.1f (age %.2f hours)", ts.name, uid, ts.Score, ts.ScoreBalance, ts.handicap, age)
+		fmt.Fprintf(wr, "%s (%d) Score %.1f Bal %.1f Hand %.1f (age %.2f hours)", ts.name, uid, ts.Score, ts.ScoreBalance, ts.handicap, age)
+		if ts.Score > 0.1 {
+			ts.decay(&now) // Trig a save if there is some score
+		}
 	}
 	mutex.RUnlock()
 }
 
-// Given the time stamp, decay the scores
+// Given the time stamp, decay the score
 func (ts *territoryScore) decay(now *time.Time) {
 	// The decay is based on an exponential half time
 	deltaTime := float64(now.Sub(ts.TimeStamp))
@@ -195,10 +182,9 @@ func (ts *territoryScore) decay(now *time.Time) {
 }
 
 //
-// The rest of this file is for the process that maintains the score synchronisation with the SQL DB
+// A process that will manage the decay of all entries, and save to the database as needed.
 //
 func maintainScore() {
-	// log.Println("score.maintainScore starting")
 	var elapsed time.Duration // Used to measure performance of this process
 	timerstats.Add("Score maintenance", ConfigScoreUpdatePeriod, &elapsed)
 	var list []*territoryScore // Use a linear copy of all pointers so that the map doesn't have to be locked.
@@ -217,60 +203,60 @@ func maintainScore() {
 			goto again // Don't start a new timer
 		case <-timer.C:
 			update(list)
-			elapsed = time.Now().Sub(start)
+			elapsed = time.Now().Sub(start) // For statistics only
 		}
 	}
 }
 
-// Iterate over the copy of all scores, and save to SQL DB where needed.
+// Iterate over the copy of the list of all scores, and save to database where needed.
+// The map could be used here, in which case a lock would be required. But DB access take
+// a long time.
 func update(list []*territoryScore) {
-	if *disableSQL {
-		return
-	}
 	db := ephenationdb.New()
 	now := time.Now()
 	for _, ts := range list {
-		if !ts.initialized {
-			log.Println("score.update initialize from DB for", ts.uid)
-			loadFromSQL(db, ts)
-		}
-
 		if !ts.modified {
 			continue
 		}
 
-		oldScore := ts.Score
-		oldBalance := ts.ScoreBalance
+		// The decay isn't executed unless there has been a change, to save from unnecessary DB updates.
 		ts.decay(&now)
-
-		if ts.initialized {
-			// Normally, it is initialized, but stay on the safe side if there was a problem.
-			saveToSQL(db, ts)
-			log.Printf("score.update %s to %.1f (diff %f), Balance %.1f (diff %f)\n", ts.name, ts.Score, ts.Score-oldScore, ts.ScoreBalance, ts.ScoreBalance-oldBalance)
-		}
+		saveToSQL(db, ts)
 	}
 }
 
-// Load SDB DB score data for territory ts.uid.
-func loadFromSQL(db *mgo.Database, ts *territoryScore) {
+// Load DB score data for territory owned by 'uid' into 'ts'.
+func loadFromSQL(ts *territoryScore, uid uint32) {
 	var avatarScore struct {
 		TScoreTotal, TScoreBalance float64
 		TScoreTime                 uint32
 		Name                       string
 		Territory                  []chunkdb.CC // The chunks allocated for this player.
 	}
-	query := db.C("avatars").FindId(ts.uid)
+	db := ephenationdb.New()
+	query := db.C("avatars").FindId(uid)
 	err := query.One(&avatarScore)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	Initialize(ts.uid, avatarScore.TScoreTotal, avatarScore.TScoreBalance, avatarScore.TScoreTime, avatarScore.Name, len(avatarScore.Territory))
+	ts.uid = uid
+	ts.handicap = computeFactor(len(avatarScore.Territory))
+	ts.Score = avatarScore.TScoreTotal
+	ts.ScoreBalance = avatarScore.TScoreBalance
+	ts.TimeStamp = time.Unix(int64(avatarScore.TScoreTime), 0)
+	ts.name = avatarScore.Name
+	ts.modified = true
+	now := time.Now()
+	ts.decay(&now) // Update the decay
 }
 
 func saveToSQL(db *mgo.Database, ts *territoryScore) {
-	var avatarScore struct {
+	if *disableSave {
+		return
+	}
+	var avatarScore struct { // This are the complete list of values that are saved
 		TScoreTotal, TScoreBalance float64
 		TScoreTime                 uint32
 	}
