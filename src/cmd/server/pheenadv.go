@@ -86,7 +86,7 @@ func main() {
 		err = ephenationdb.SetConnection(f)
 		if err != nil {
 			log.Println("main: open DB:", err)
-			return
+			// Continue without DB. Only test users can connect.
 		}
 	} else {
 		log.Println("Config file", configFileName, "missing, or no section 'sql'")
