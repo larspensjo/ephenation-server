@@ -361,7 +361,7 @@ func (up *user) TerritoryClaim_WLwWLc(arg []string) {
 	}
 
 	// All tests are approved, allocate the chunk
-	ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y, cc.Z})
+	ChunkFind_WLwWLc(chunkdb.CC{X: cc.X, Y: cc.Y, Z: cc.Z})
 	cp.owner = up.Id
 	cp.flag |= CHF_MODIFIED
 	cp.Write()

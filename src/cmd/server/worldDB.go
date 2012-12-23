@@ -173,9 +173,10 @@ type user_coord struct {
 
 // Take a user coordinate and get the chunk coordinate
 func (uc *user_coord) GetChunkCoord() chunkdb.CC {
-	return chunkdb.CC{int32(math.Floor(uc.X / CHUNK_SIZE)),
-		int32(math.Floor(uc.Y / CHUNK_SIZE)),
-		int32(math.Floor(uc.Z / CHUNK_SIZE))}
+	return chunkdb.CC{
+		X: int32(math.Floor(uc.X / CHUNK_SIZE)),
+		Y: int32(math.Floor(uc.Y / CHUNK_SIZE)),
+		Z: int32(math.Floor(uc.Z / CHUNK_SIZE))}
 }
 
 // Send a command to all near players. This is non blocking. It is not a very fast operation, and should
@@ -468,7 +469,7 @@ func DBGetBlock_WLwWLc(uc user_coord) block {
 // chunk again. There are some use cases that iterate over near positions repeatedly.
 // This variable can change anytime asynchronously. Always make a copy!
 // The pointer is expected to change atomically.
-var dbGetBlockLastChunk = &chunk{Coord: chunkdb.CC{math.MaxInt32, math.MaxInt32, math.MaxInt32}} // Initialize to invalid chunk address
+var dbGetBlockLastChunk = &chunk{Coord: chunkdb.CC{X: math.MaxInt32, Y: math.MaxInt32, Z: math.MaxInt32}} // Initialize to invalid chunk address
 func ChunkFindCached_WLwWLc(cc chunkdb.CC) *chunk {
 	cp := dbGetBlockLastChunk // Make a copy of the pointer to the previous chunk used
 	if cp.Coord.X != cc.X || cp.Coord.Y != cc.Y || cp.Coord.Z != cc.Z {
@@ -660,12 +661,12 @@ func UpdateZPos_WLwWLc(deltaTime time.Duration, ZSpeed float64, coord *user_coor
 // Never call this from the chunk loading or creation functions, as infinite recursion can happen.
 func dBGetAdjacentChunks(cc *chunkdb.CC) []*chunk {
 	var ret [6]*chunk
-	ret[0] = ChunkFind_WLwWLc(chunkdb.CC{cc.X + 1, cc.Y, cc.Z})
-	ret[1] = ChunkFind_WLwWLc(chunkdb.CC{cc.X - 1, cc.Y, cc.Z})
-	ret[2] = ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y + 1, cc.Z})
-	ret[3] = ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y - 1, cc.Z})
-	ret[4] = ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y, cc.Z + 1})
-	ret[5] = ChunkFind_WLwWLc(chunkdb.CC{cc.X, cc.Y, cc.Z - 1})
+	ret[0] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X + 1, Y: cc.Y, Z: cc.Z})
+	ret[1] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X - 1, Y: cc.Y, Z: cc.Z})
+	ret[2] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X, Y: cc.Y + 1, Z: cc.Z})
+	ret[3] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X, Y: cc.Y - 1, Z: cc.Z})
+	ret[4] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X, Y: cc.Y, Z: cc.Z + 1})
+	ret[5] = ChunkFind_WLwWLc(chunkdb.CC{X: cc.X, Y: cc.Y, Z: cc.Z - 1})
 	return ret[:]
 }
 

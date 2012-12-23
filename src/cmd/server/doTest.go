@@ -99,7 +99,7 @@ func DoTestEncoding() {
 }
 
 func DoTestChunkCompression() {
-	coord := chunkdb.CC{0, 0, 4}
+	coord := chunkdb.CC{X: 0, Y: 0, Z: 4}
 	ch := dBCreateChunk(coord)
 	ch.ch_comp = nil // Make sure there is no compress data yet
 	rc := raw_chunk{}
@@ -229,7 +229,7 @@ func DoTestEncrypt() {
 // Verify correct connectivity between triggers and activators.
 func DoTestTriggerBlocks_WLwWLc() {
 	msg1 := "apa"
-	ch := dBCreateChunk(chunkdb.CC{0, 0, 0})
+	ch := dBCreateChunk(chunkdb.CC{X: 0, Y: 0, Z: 0})
 	ch.ComputeLinks()
 	DoTestCheck("DoTestTriggerBlocks No initial links", len(ch.blTriggers) == 0 && len(ch.triggerMsgs) == 0)
 	// Define a trigger, an activator, and a link in between. Easy one, not at the
@@ -517,10 +517,10 @@ func DoTestPlayerManagement_WLuWLqWLmBlWLaWLwWLc() {
 }
 
 func DoTestCoordinates() {
-	cHigh := chunkdb.CC{0xFF, 0xFF, 0xFF}
+	cHigh := chunkdb.CC{X: 0xFF, Y: 0xFF, Z: 0xFF}
 	c1 := cHigh.UpdateLSB(1, 2, 3)
 	DoTestCheck("DoTestCoordinates chunkdb.CC.UpdateLSB high", c1.X == 0x101 && c1.Y == 0x102 && c1.Z == 0x103)
-	cLow := chunkdb.CC{1, 2, 3}
+	cLow := chunkdb.CC{X: 1, Y: 2, Z: 3}
 	c2 := cLow.UpdateLSB(0xFF, 0xFE, 0xFD)
 	DoTestCheck("DoTestCoordinates chunkdb.CC.UpdateLSB low", c2.X == -1 && c2.Y == -2 && c2.Z == -3)
 	// fmt.Println(c1, c2)
@@ -631,7 +631,7 @@ func DoTestChunkCompare(ch1, ch2 *chunk) bool {
 
 // Write a chunk, read it back, and compare that it is the same content
 func DoTestChunkSaveRestore() {
-	coord := chunkdb.CC{0, 0, 0}
+	coord := chunkdb.CC{X: 0, Y: 0, Z: 0}
 	ch1 := dBCreateChunk(coord)
 	var buf bytes.Buffer
 	ok := ch1.WriteFS(&buf)
@@ -664,7 +664,7 @@ func DoTestJellyBlocks() {
 	const (
 		testCoord = math.MaxInt32 // Too far away for anyone to reach
 	)
-	chunk := chunkdb.CC{testCoord, 0, 0}
+	chunk := chunkdb.CC{X: testCoord, Y: 0, Z: 0}
 	ch := dBCreateChunk(chunk)
 	// Initialize with something that is not air
 	ch.rc[0][0][0] = BT_Stone

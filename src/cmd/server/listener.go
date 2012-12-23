@@ -447,7 +447,7 @@ func MakeCommandReadChunk_WLwWLcBl(i int, b []byte) {
 	y, b, _ := ParseUint32(b)
 	z, b, _ := ParseUint32(b)
 	up := allPlayers[i]
-	up.CmdReadChunk_WLwWLcBl(chunkdb.CC{int32(x), int32(y), int32(z)})
+	up.CmdReadChunk_WLwWLcBl(chunkdb.CC{X: int32(x), Y: int32(y), Z: int32(z)})
 }
 
 func MakeDirectionsCommand(i int, b []byte) {

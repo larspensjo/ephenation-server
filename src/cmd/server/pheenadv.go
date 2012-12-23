@@ -176,7 +176,7 @@ func ConvertFiles() {
 			fmt.Printf("Chunk %v bad file name\n", fn)
 			continue
 		}
-		c := chunkdb.CC{int32(x), int32(y), int32(z)}
+		c := chunkdb.CC{X: int32(x), Y: int32(y), Z: int32(z)}
 		ch := dBFindChunkFromFS(c)
 		if ch.flag&CHF_MODIFIED != 0 {
 			mod++
