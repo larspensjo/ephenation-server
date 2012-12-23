@@ -258,9 +258,6 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 				log.Printf("Logincmd %v\n", buff[3:length])
 			}
 			up.CmdLogin_WLwWLuWLqBlWLc(string(buff[3:length]))
-			if *verboseFlag > 1 {
-				defer log.Printf("Leaving player '%v'\n", up.Name)
-			}
 		case CMD_RESP_PASSWORD:
 			// log.Printf("Logincmd %v\n", buff[3 : length])
 			if !up.CmdPassword_WLwWLuWLqBlWLc(buff[3:length]) {
@@ -282,7 +279,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 		case CMD_QUIT:
 			if *verboseFlag > 1 {
-				log.Printf("Disconnect %v\n", up.Name)
+				log.Printf("Quit: %v\n", up.Name)
 			}
 			return
 		case CMD_GET_COORDINATE:

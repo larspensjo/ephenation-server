@@ -89,7 +89,7 @@ func main() {
 			// Continue without DB. Only test users can connect.
 		}
 	} else {
-		log.Println("Config file", configFileName, "missing, or no section 'sql'")
+		log.Println("Config file", *configFileName, "missing section", configSection)
 	}
 	if encryptionSalt, err = cnfg.String("login", "salt"); err != nil {
 		encryptionSalt = "" // Effectively no salt

@@ -160,9 +160,9 @@ func ProcAutosave_RLu() {
 	for {
 		start := time.Now()
 		oldMajor, oldMinor := ClientCurrentMajorVersion, ClientCurrentMinorVersion
-		ClientCurrentMajorVersion, ClientCurrentMinorVersion = LoadClientVersionInformation("clientversion.txt")
+		ClientCurrentMajorVersion, ClientCurrentMinorVersion = LoadClientVersionInformation()
 		if (oldMajor != ClientCurrentMajorVersion || oldMinor != ClientCurrentMinorVersion) && *verboseFlag > 0 {
-			log.Printf("New client version %d.%d\n", ClientCurrentMajorVersion, ClientCurrentMinorVersion)
+			log.Printf("Current client version %d.%d\n", ClientCurrentMajorVersion, ClientCurrentMinorVersion)
 		}
 		time.Sleep(CnfgAutosavePeriod)
 		SaveAllPlayers_RLa()
@@ -170,7 +170,9 @@ func ProcAutosave_RLu() {
 	}
 }
 
-func LoadClientVersionInformation(file string) (int, int) {
+// Extract the version of the current client from the config file. This is done
+// repeatedly, which means the definition can be changed "live", while the server is running.
+func LoadClientVersionInformation() (int, int) {
 	cnfg, err := config.ReadDefault(*configFileName)
 	if err == nil && cnfg.HasSection("client") {
 		major, err := cnfg.Int("client", "major")
