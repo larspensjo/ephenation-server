@@ -280,6 +280,9 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			} else if lastUser != "" {
 				up.Printf_Bl("Last logout: %s in %s", lastUser, time.Now().Sub(timeOfLogout))
 			}
+			if *verboseFlag > 0 {
+				log.Println("Successful LOGIN for", up.Email, up.Name)
+			}
 		case CMD_QUIT:
 			if *verboseFlag > 1 {
 				log.Printf("Disconnect %v\n", up.Name)
