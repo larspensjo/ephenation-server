@@ -1,4 +1,4 @@
-// Copyright 2012 The Ephenation Authors
+// Copyright 2012-2013 The Ephenation Authors
 //
 // This file is part of Ephenation.
 //
@@ -75,7 +75,7 @@ const (
 	CMD_Last                       = 47 // ONE HIGHER THAN LAST COMMAND! Add no commands after this one.
 
 	ProtVersionMajor = 5
-	ProtVersionMinor = 1
+	ProtVersionMinor = 2
 )
 
 //

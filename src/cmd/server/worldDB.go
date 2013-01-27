@@ -1,4 +1,4 @@
-// Copyright 2012 The Ephenation Authors
+// Copyright 2012-2013 The Ephenation Authors
 //
 // This file is part of Ephenation.
 //
@@ -52,7 +52,10 @@ const (
 	CHUNK_VOL  = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE // Just a help constant
 )
 
-// These are the block types. Make sure to update blockIsInvisible and blockIsPermeable below.
+// These are the block types.
+// Make sure to update blockIsInvisible and blockIsPermeable below.
+// Do not use the "iota" mechanism to automatically increment the number, as the number must stay the same even if
+// old block types are removed.
 const (
 	BT_Unused        = block(0)
 	BT_Stone         = block(1)
@@ -84,6 +87,10 @@ const (
 	BT_Quest         = block(27)
 	BT_Tuft          = block(28)
 	BT_Flowers       = block(29)
+	BT_Bark          = block(30)
+	BT_RedLight      = block(31) // Add red light
+	BT_GreenLight    = block(32) // Add green light
+	BT_BlueLight     = block(33) // Add blue light
 
 	BT_Stone2   = block(127)
 	BT_Topsoil  = block(128) // This block is never stored in a chunk.
@@ -602,6 +609,9 @@ func init() {
 	blockIsInvisible[BT_Text] = true
 	blockIsInvisible[BT_SmallFog] = true
 	blockIsInvisible[BT_BigFog] = true
+	blockIsInvisible[BT_RedLight] = true
+	blockIsInvisible[BT_GreenLight] = true
+	blockIsInvisible[BT_BlueLight] = true
 
 	blockIsPermeable[BT_Air] = true
 	blockIsPermeable[BT_DeTrigger] = true
@@ -622,6 +632,9 @@ func init() {
 	blockIsPermeable[BT_Quest] = true
 	blockIsPermeable[BT_Lamp1] = true
 	blockIsPermeable[BT_Lamp2] = true
+	blockIsPermeable[BT_RedLight] = true
+	blockIsPermeable[BT_GreenLight] = true
+	blockIsPermeable[BT_BlueLight] = true
 }
 
 // Update the Z position of an object, taking into account ground level and z speed. The argument is updated,
