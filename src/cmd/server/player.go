@@ -80,6 +80,10 @@ func (up *user) String() string {
 func (up *user) Load_WLwBlWLc(email string) bool {
 	// Connect to database
 	db := ephenationdb.New()
+	if db == nil {
+		log.Println("No DB cpnnection", email)
+		return false
+	}
 	err := db.C("avatars").Find(bson.M{"email": email}).One(&up.UserLoad)
 	if err != nil {
 		log.Println("Avatar for", email, err)
