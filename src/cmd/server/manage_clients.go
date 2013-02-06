@@ -26,7 +26,7 @@ import (
 	"ephenationdb"
 	"fmt"
 	sync "github.com/larspensjo/Go-sync-evaluation/evalsync"
-	"github.com/robfig/goconfig/config"
+	"github.com/larspensjo/config"
 	"io/ioutil"
 	"labix.org/v2/mgo/bson"
 	"license"

@@ -26,7 +26,7 @@ package main
 //
 
 import (
-	"github.com/robfig/goconfig/config"
+	"github.com/larspensjo/config"
 	"log"
 	"os"
 	"os/signal"

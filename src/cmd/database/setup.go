@@ -20,7 +20,7 @@ package main
 import (
 	"ephenationdb"
 	"flag"
-	"github.com/robfig/goconfig/config"
+	"github.com/larspensjo/config"
 	"log"
 	"os"
 )

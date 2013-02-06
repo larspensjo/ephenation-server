@@ -22,7 +22,7 @@ import (
 	"ephenationdb"
 	"flag"
 	"fmt"
-	"github.com/robfig/goconfig/config"
+	"github.com/larspensjo/config"
 	"io/ioutil"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
