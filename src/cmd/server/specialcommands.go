@@ -116,6 +116,7 @@ func (up *user) playerStringMessage_RLuWLwRLqBlWLaWLc(buff []byte) {
 		up.Printf_Bl("!Worst message write %.6f s, Worst chunk read %.6f s", float64(WorstWriteTime)/float64(time.Second), float64(DBStats.WorstRead)/float64(time.Second))
 		up.Printf_Bl("!Num chunks read: %d, average read time %.6f", DBStats.NumRead, float64(DBStats.TotRead)/float64(DBStats.NumRead)/float64(time.Second))
 		up.Printf_Bl("!Created chunks: %d, average time %.6f", DBCreateStats.Num, float64(DBCreateStats.TotTime)/float64(DBCreateStats.Num)/float64(time.Second))
+		up.Printf_Bl("!Server booted %v", bootDate)
 		up.Printf_Bl("!%s", trafficStatistics)
 		WorstWriteTime = 0
 		DBStats.WorstRead = 0

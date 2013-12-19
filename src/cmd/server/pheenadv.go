@@ -53,6 +53,7 @@ var (
 	inhibitCreateChunks = flag.Bool("nocreate", false, "Only load modified chunks, and save no changes")
 	configFileName      = flag.String("configfile", "config.ini", "General configuration file")
 	createuser          = flag.String("createuser", "", "Create user from argument 'email,password,avatar'")
+	bootDate            = time.Now()
 
 	trafficStatistics = traffic.New()
 	superChunkManager = superchunk.New(CnfgSuperChunkFolder)
