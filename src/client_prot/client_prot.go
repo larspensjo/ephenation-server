@@ -72,7 +72,8 @@ const (
 	CMD_REQ_PLAYER_INFO            = 44 // Request player information
 	CMD_RESP_PLAYER_NAME           = 45 // A name of a player
 	CMD_TELEPORT                   = 46 // Teleport player to a chunk coordinate.
-	CMD_Last                       = 47 // ONE HIGHER THAN LAST COMMAND! Add no commands after this one.
+	CMD_ERROR_REPORT               = 47 // Send an error report to the server, in the form of a string.
+	CMD_Last                       = 48 // ONE HIGHER THAN LAST COMMAND! Add no commands after this one.
 
 	ProtVersionMajor = 5
 	ProtVersionMinor = 2

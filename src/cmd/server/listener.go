@@ -430,6 +430,8 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 		case CMD_TELEPORT:
 			up.Teleport(buff[3:length])
+		case CMD_ERROR_REPORT:
+			log.Printf("Error message for %v: %s\n", up.Name, string(buff[3:length]))
 		default:
 			log.Printf("Unknown command '%v'.\n", buff[0:length])
 			return
