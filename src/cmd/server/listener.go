@@ -195,7 +195,7 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			}
 		}
 		if n != 2 {
-			log.Printf("Got %d bytes readin from socket\n", n)
+			log.Printf("Got %d bytes reading from socket\n", n)
 			continue
 		}
 		length := int(uint(buff[1])<<8 + uint(buff[0]))
@@ -204,27 +204,34 @@ func ManageOneClient2_WLuWLqWLmBlWLcWLw(conn net.Conn, i int) {
 			copy(buff2, buff[0:2])
 			buff = buff2
 			if *verboseFlag > 2 {
-				log.Printf("Expecting %d bytes, which is too much for buffer. BUffer was extended\n", length)
+				log.Printf("Expecting %d bytes, which is too much for buffer. Buffer was extended\n", length)
 			}
 		}
 		// Read the rest of the bytes
+		conn.SetReadDeadline(time.Now().Add(1e10)) // Give it up after a long time
 		for n2 := n; n2 < length; {
+			if *verboseFlag > 1 {
+				log.Println("Got", n2, "out of", length, "bytes")
+			}
 			// If unlucky, we only get one byte at a time
 			var e2 net.Error
-			for {
-				// Loop here until we get what we want.
+			const maxDelay = 5
+			for i := 0; i < maxDelay; i++ {
+				// Normal case is one iteration in this loop
 				n, err = conn.Read(buff[n2:length])
 				if err == nil {
 					break // No error
 				}
 				e2, ok := err.(net.Error)
-				if ok && !e2.Temporary() && !e2.Timeout() {
+				if ok && !e2.Temporary() && !e2.Timeout() { // We don't really expect a timeout here
 					break // Bad error, can't handle it.
 				}
 				if *verboseFlag > 1 {
-					log.Println("Timeout, sleep wait")
+					log.Println("Temporary, retry")
 				}
-				time.Sleep(1e7)
+				if *verboseFlag > 0 && i == maxDelay-1 {
+					log.Println("Timeout, giving up")
+				}
 			}
 			if err != nil {
 				if *verboseFlag > 0 {
