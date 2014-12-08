@@ -14,5 +14,3 @@ and a blog about some of the OpenGL experiences [Ephenation OpenGL](http://ephen
 
 
 ![View](https://lh3.googleusercontent.com/-dGiXwRVTXgA/UGcwRDzfIrI/AAAAAAAAAUs/EHObZSWYJp4/w732-h296-n-k/View_2012-09-30.jpeg)
-
-Interested in joining the project? All talents are welcome, send mail to info@ephenation.net.
